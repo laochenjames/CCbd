@@ -1,0 +1,29 @@
+# 临时与备份目录
+sprites_backup/
+temp_*/
+*.tmp
+*.log
+
+# Python 编译与运行缓存
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+ENV/
+
+# 操作系统生成文件
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+.DS_Store?
+._*
+
+# 编辑器与 IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

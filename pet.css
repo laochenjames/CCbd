@@ -1,0 +1,206 @@
+#xpet-root {
+  position: fixed;
+  width: 72px;
+  height: 64px;
+  z-index: 2147483647;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  pointer-events: auto;
+}
+#xpet-root.xpet-dragging { cursor: grabbing; }
+
+#xpet-root .xpet-body {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+  animation: xpet-breathe 3s ease-in-out infinite;
+}
+/* 精灵图自身自带精细逐帧动作，取消外层 3s 机械拉伸变形，保持画面清晰自然 */
+#xpet-root .xpet-body.xpet-has-sprite {
+  animation: none;
+}
+#xpet-root.xpet-jump .xpet-body {
+  animation: xpet-jump 0.5s ease-out;
+}
+/* 精灵图已内含跳跃起伏，外层仅施加轻微微弹，避免动作冲突叠加 */
+#xpet-root.xpet-jump .xpet-body.xpet-has-sprite {
+  animation: xpet-sprite-jump 0.4s ease-out;
+}
+@keyframes xpet-sprite-jump {
+  0%, 100% { transform: scale(1, 1); }
+  30% { transform: scale(1.04, 0.96) translateY(-3px); }
+  65% { transform: scale(0.98, 1.02) translateY(0); }
+}
+#xpet-root.xpet-dragging .xpet-body {
+  animation: none;
+  transform: scale(1.08, 0.94);
+}
+#xpet-root svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+#xpet-root .xpet-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: xpet-blink 4.5s infinite;
+}
+
+#xpet-root .xpet-bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -6px);
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: #fff;
+  color: #222;
+  font: 13px/1.3 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+#xpet-root .xpet-bubble.xpet-show { opacity: 1; }
+
+@keyframes xpet-breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.04, 0.94); }
+}
+@keyframes xpet-jump {
+  0% { transform: scale(1, 1) translateY(0); }
+  25% { transform: scale(1.1, 0.85) translateY(0); }
+  55% { transform: scale(0.92, 1.1) translateY(-22px); }
+  80% { transform: scale(1.08, 0.9) translateY(0); }
+  100% { transform: scale(1, 1) translateY(0); }
+}
+@keyframes xpet-blink {
+  0%, 93%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+
+#xpet-root.xpet-nudge .xpet-body {
+  animation: xpet-nudge 0.35s ease-out;
+}
+@keyframes xpet-nudge {
+  0% { transform: scale(1, 1) translateY(0); }
+  40% { transform: scale(0.97, 1.04) translateY(-7px); }
+  100% { transform: scale(1, 1) translateY(0); }
+}
+
+/* 自定义角色图片 */
+#xpet-root .xpet-body img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* 右键菜单 */
+#xpet-menu {
+  position: fixed;
+  z-index: 2147483647;
+  min-width: 140px;
+  padding: 4px 0;
+  border-radius: 10px;
+  background: #fff;
+  color: #222;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  font: 13px/1.4 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  user-select: none;
+}
+#xpet-menu .xpet-menu-item { padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+#xpet-menu .xpet-menu-item:hover { background: #eef2f5; }
+#xpet-menu .xpet-menu-title { color: #777; font-size: 12px; cursor: default; }
+#xpet-menu .xpet-menu-title:hover { background: none; }
+#xpet-menu .xpet-menu-sep { border-top: 1px solid #e3e6e8; margin-top: 4px; padding-top: 9px; }
+@media (prefers-color-scheme: dark) {
+  #xpet-menu { background: #2a2d31; color: #eee; }
+  #xpet-menu .xpet-menu-item:hover { background: #3a3e44; }
+  #xpet-menu .xpet-menu-sep { border-top-color: #444; }
+}
+
+/* 统计条：显示在宠物下方，可在设置页关闭 */
+#xpet-root .xpet-chip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 3px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(30, 33, 37, 0.72);
+  color: #fff;
+  font: 11px/18px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  display: none;
+}
+
+/* 系统开启"减少动态效果"时，关闭宠物的持续动画 */
+@media (prefers-reduced-motion: reduce) {
+  #xpet-root .xpet-body, #xpet-root .xpet-eye { animation: none; }
+}
+
+/* 装扮：emoji 叠在宠物头顶，随身体一起动 */
+#xpet-root .xpet-body { position: relative; }
+#xpet-root .xpet-acc {
+  position: absolute;
+  top: -8px;
+  right: 6px;
+  font-size: 22px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* 今日小结卡片 */
+#xpet-summary {
+  position: fixed;
+  z-index: 2147483647;
+  width: 260px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff;
+  color: #222;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  font: 13px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+#xpet-summary .xpet-sum-title { font-weight: 600; margin-bottom: 4px; }
+#xpet-summary .xpet-sum-row { margin: 2px 0; }
+#xpet-summary .xpet-sum-k { color: #888; margin-right: 8px; }
+#xpet-summary .xpet-sum-foot { margin-top: 8px; padding-top: 6px; border-top: 1px solid #e3e6e8; color: #2f9e5a; }
+@media (prefers-color-scheme: dark) {
+  #xpet-summary { background: #2a2d31; color: #eee; }
+  #xpet-summary .xpet-sum-foot { border-top-color: #444; color: #6fd08c; }
+}
+
+/* 宠物在旁边做的事：道具/打盹/哈欠，叠在身体左下 */
+#xpet-root .xpet-prop {
+  position: absolute; left: 2px; bottom: 2px; font-size: 18px; line-height: 1; pointer-events: none;
+  transform-origin: 50% 100%;
+}
+#xpet-root .xpet-prop-busy { animation: xpet-prop-bob 2.6s ease-in-out infinite; }
+#xpet-root .xpet-prop-idle, #xpet-root .xpet-prop-night { animation: xpet-prop-float 3.2s ease-in-out infinite; }
+@keyframes xpet-prop-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes xpet-prop-float { 0%, 100% { transform: translateY(0); opacity: 0.85; } 50% { transform: translateY(-4px); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #xpet-root .xpet-prop { animation: none; } }
+
+/* 精灵图：把一张横排的长图按帧播放（steps），帧数/速度由内联样式设置 */
+#xpet-root .xpet-sprite {
+  position: absolute; left: 50%; bottom: 0;
+  transform: translate3d(-50%, 0, 0);
+  background-repeat: no-repeat;
+  background-position: 0% 100%;
+  pointer-events: none;
+  image-rendering: -webkit-optimize-contrast;
+  backface-visibility: hidden;
+  will-change: background-position-x;
+  transition: opacity 0.15s ease-out;
+}
+@keyframes xpet-sprite { from { background-position-x: 0%; } to { background-position-x: 100%; } }
+#xpet-root .xpet-has-sprite > svg, #xpet-root .xpet-has-sprite > img { visibility: hidden; }
+#xpet-root .xpet-prop { font-size: calc(18px * var(--xs, 1)); }
+@media (prefers-reduced-motion: reduce) { #xpet-root .xpet-sprite { animation: none !important; } }

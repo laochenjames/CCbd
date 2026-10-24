@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "X 桌宠",
+  "version": "0.11.0",
+  "description": "一只陪你逛推特的卡通小伙伴，可自定义角色和台词。",
+  "permissions": [
+    "storage",
+    "unlimitedStorage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "js": [
+        "shared.js",
+        "stories.js",
+        "content.js"
+      ],
+      "css": [
+        "pet.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1zn1H2rZszXY6oLS9iMbeg6aKFlGldRn0BgJZ/0WxuoXhemPL6fk1GlQP0mgpYer4SwaQ/RKREcRl2UM1FCI0o/fJ2zbDlbag0YNR/XVoWVKgoiRog74Bu0twbwE/7/c1IA1vl6cDEoXuzJ6+txyqE6FPnjSExm7F9uy/8mgdbg6ZyjXfpD5zIeYMg0B1/EzJP1x73cIEFHin9A4SoPtRA3v57peUsZJa7yfJnSZJmO1EJEnvDULZQv2dDLkAV07PcicTJtFYA33QFaoQgWn4kTrGT34RFDnfPXqLBdU89lpDXM8zyP8Unkb8LohXjfG9lMyUXra+nM3BFg2KHWYBwIDAQAB",
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "sprites/*"
+      ],
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ]
+    }
+  ]
+}

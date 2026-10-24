@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>X 桌宠 · 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <h1>X 桌宠 · 设置</h1>
+    <p class="hint">修改会自动保存，已打开的推特页面会立刻生效，不需要刷新。在推特页面上<b>右键点击宠物</b>也可以快速切换角色。</p>
+    <div id="status" role="status"></div>
+    <section class="cal-sec">
+      <h2>日历</h2>
+      <div class="cal-nav">
+        <button id="cal-prev" type="button" aria-label="上个月">‹</button>
+        <span id="cal-title"></span>
+        <button id="cal-next" type="button" aria-label="下个月">›</button>
+        <button id="cal-today" type="button">回到本月</button>
+      </div>
+      <div id="cal"></div>
+      <div id="cal-detail" class="hint">点一天看详情。颜色只表示和你设的区间的关系，没有对错。</div>
+      <div id="cal-month" class="cal-month"></div>
+      <div class="cal-legend" id="cal-legend"></div>
+      <details><summary>数据管理</summary>
+        <p class="hint">在线时长只在页面可见、窗口有焦点、且最近 1 分钟内有操作时才计时。滚动距离按屏幕像素折算成米，只是估算值。历史保留 90 天，经验结算记录保留 400 天。</p>
+        <p class="hint"><b>备份</b>：包含角色（含图片）、历史统计、经验、设置。换电脑、重装扩展前先导出一份。</p>
+        <button id="backup-export" type="button">导出备份</button>
+        <button id="backup-import" type="button">导入备份…</button>
+        <input type="file" id="backup-file" accept="application/json,.json" hidden>
+        <hr>
+        <button id="clear-hist" class="danger" type="button">清除历史数据</button>
+      </details>
+    </section>
+
+    <section class="goal-sec" id="goal">
+      <h2>每日时间区间与经验</h2>
+      <p id="goal-sum" class="goal-sum"></p>
+      <p class="hint">每天在站点上的在线时长落在你设的区间内，当天得满额经验（固定值，不随时间增加）。经验按天自动结算、自动累积，不需要领取；攒够会自动解锁装扮。</p>
+      <label class="row">下限：<input type="number" id="s-goalMin" class="num" min="0" max="1440"> 分钟（0 = 不设下限；低于下限只给一部分，按比例）</label>
+      <label class="row">上限：<input type="number" id="s-goalMax" class="num" min="0" max="1440"> 分钟（0 = 不设上限）</label>
+      <label class="row">超出上限后：每多一分钟逐渐减少，用满 <input type="number" id="s-goalGrace" class="num" min="1" max="1440"> 分钟后当天经验降为 0</label>
+      <p class="hint">超出上限不会扣已有的经验，也没有任何惩罚提示；最低为 0。</p>
+    </section>
+
+    <section class="book-sec">
+      <details id="book">
+        <summary id="book-sum">宠物的小本子</summary>
+        <p class="hint">随累计经验解锁，全部可见、没有隐藏内容。解锁的页会写下一件你确实做到了的事。</p>
+        <div id="book-list"></div>
+      </details>
+    </section>
+
+    <div id="list"></div>
+    <button id="add" class="primary">＋ 新建角色</button>
+    <section class="history" id="settings">
+      <h2>显示与提醒</h2>
+      <p class="hint">点开分组查看；不需要的功能可以在这里关掉，修改会立刻生效。</p>
+
+      <details class="grp"><summary>今日统计</summary>
+      <label class="row">显示方式：
+        <select id="s-chipMode">
+          <option value="click">点击宠物时，在宠物下方显示</option>
+          <option value="always">常驻显示在宠物下方</option>
+          <option value="off">不显示（右键菜单的「今日统计」仍可查看）</option>
+        </select>
+      </label>
+      <div class="sub" id="s-items">
+        <label><input type="checkbox" data-item="post"> 发推/回复</label>
+        <label><input type="checkbox" data-item="like"> 点赞</label>
+        <label><input type="checkbox" data-item="bookmark"> 收藏</label>
+        <label><input type="checkbox" data-item="repost"> 转发</label>
+        <label><input type="checkbox" data-item="follow"> 关注</label>
+        <label><input type="checkbox" data-item="time"> 在线时长</label>
+        <label><input type="checkbox" data-item="scroll"> 滚动距离</label>
+      </div>
+      <p class="hint">上面勾选的项目，同时决定点击显示、常驻显示、右键「今日统计」和台词里 <code>{stats}</code> 的内容，它们完全一致。</p>
+      </details>
+
+      <details class="grp"><summary>主动提醒（时长 / 深夜）</summary>
+      <label class="row"><input type="checkbox" id="s-tired"> 今日在线每满
+        <input type="number" id="s-tiredMin" class="num" min="5" max="720" step="5"> 分钟提醒一次</label>
+      <label class="row"><input type="checkbox" id="s-night"> 每天
+        <input type="number" id="s-nightStart" class="num" min="0" max="23"> 点到
+        <input type="number" id="s-nightEnd" class="num" min="0" max="23"> 点之间仍在使用时提醒</label>
+      <p class="hint">时间段可以跨午夜，例如 23 点到 5 点；起止相同表示不提醒。</p>
+      <label class="row"><input type="checkbox" id="s-cap"> 接近每日上限时提醒（到上限的 80% 一次，到达上限一次；需要在上面设了上限）</label>
+      <label class="row"><input type="checkbox" id="s-back"> 同一天内离开超过
+        <input type="number" id="s-backMin" class="num" min="10" max="720" step="10"> 分钟再回来时，说一句「回来啦」</label>
+      <label class="row"><input type="checkbox" id="s-milestone"> 累计陪伴天数到 7 / 30 / 100 / 200 / 365 天时说一句（累计，不要求连续）</label>
+      <label class="row"><input type="checkbox" id="s-stories"> 小本子写了新的一页时提示，点宠物时偶尔说一句已解锁的碎碎念</label>
+      </details>
+
+      <details class="grp"><summary>节日与纪念日</summary>
+      <label class="row"><input type="checkbox" id="s-holiday"> 节日和纪念日当天第一次在线时，宠物说一句（当天会代替时段问候）</label>
+      <div id="holiday-items"></div>
+      <button id="holiday-add" type="button">添加纪念日</button>
+      <p class="hint">类型：阳历（每年同一天，适合生日、纪念日）、农历（春节、中秋这类）、除夕（春节前一天，日期不用填）。台词一行一句，随机取一句；台词留空则当天不说。最多 20 个。</p>
+      </details>
+
+      <details class="grp"><summary>时段问候</summary>
+      <label class="row"><input type="checkbox" id="s-greet"> 时段问候：每个时段每天第一次在线时，宠物说一句</label>
+      <div id="greet-slots"></div>
+      <button id="greet-add" type="button">添加时段</button>
+      <p class="hint">起止填小时（0–23，终点填 0 表示到午夜），可跨午夜；时段之间可以留空档，空档里不问候。台词一行一句，随机取一句；最多 8 个时段。问候台词对所有角色通用。</p>
+      </details>
+    </section>
+
+    <section class="history">
+      <details>
+      <summary>诊断（统计没记录时看这里）</summary>
+      <ul id="diag"></ul>
+      <details><summary>查看原始历史数据</summary><pre id="raw"></pre></details>
+      </details>
+    </section>
+    <section class="help">
+      <h2>说明</h2>
+      <ul>
+        <li>每个动作可以写多句台词，<b>一行一句</b>，触发时随机选一句；留空表示这个动作不说话。</li>
+        <li>台词里可以用 <code>{n}</code> 表示该动作今天的次数，用 <code>{stats}</code> 表示今日汇总，用 <code>{min}</code> 表示今天已在线的分钟数，用 <code>{left}</code> 表示离每日上限还剩几分钟，用 <code>{name}</code> 表示新解锁的装扮，用 <code>{xp}</code> 表示今天预计经验（今日小结结尾用）。</li>
+        <li>图片支持 PNG / JPG / WebP / GIF。较大的图片会自动缩小到 160 像素以内；超过 1.5 MB 的 GIF 会只保留第一帧。建议使用透明背景的 PNG。</li>
+        <li>所有数据只保存在你自己的浏览器里，不会上传。浏览器给扩展的存储空间有限（约 10 MB），角色太多或图片太大时会保存失败。</li>
+      </ul>
+    </section>
+  </main>
+  <script src="shared.js"></script>
+  <script src="stories.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
