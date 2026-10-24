@@ -150,15 +150,74 @@
   #xpet-root .xpet-body, #xpet-root .xpet-eye { animation: none; }
 }
 
-/* 装扮：emoji 叠在宠物头顶，随身体一起动 */
-#xpet-root .xpet-body { position: relative; }
-#xpet-root .xpet-acc {
+/* 工位伴侣装备：摆在宠物身前右侧桌角，随尺寸等比缩放 */
+#xpet-root .xpet-desk-gear {
   position: absolute;
-  top: -8px;
-  right: 6px;
-  font-size: 22px;
-  line-height: 1;
+  right: -8px;
+  bottom: -2px;
+  width: calc(26px * var(--xs, 1));
+  height: calc(26px * var(--xs, 1));
+  z-index: 10;
   pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  transform-origin: 50% 100%;
+}
+#xpet-root .xpet-desk-gear svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 咖啡热气升腾动效 */
+.xpet-gear-coffee .steam-1 {
+  animation: xpet-steam 2.4s ease-out infinite;
+}
+.xpet-gear-coffee .steam-2 {
+  animation: xpet-steam 2.4s ease-out infinite 1.2s;
+}
+@keyframes xpet-steam {
+  0% { transform: translateY(0); opacity: 0; }
+  35% { opacity: 0.85; }
+  100% { transform: translateY(-5px); opacity: 0; }
+}
+
+/* 小黄鸭轻微摇摆 Q 弹动效 */
+.xpet-gear-duck svg {
+  animation: xpet-duck-wobble 4.5s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+@keyframes xpet-duck-wobble {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-3.5deg); }
+  75% { transform: rotate(3.5deg); }
+}
+
+/* 赛博笔记本霓虹呼吸流光 */
+.xpet-gear-cyber_laptop svg {
+  animation: xpet-cyber-pulse 3s ease-in-out infinite;
+}
+@keyframes xpet-cyber-pulse {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(0, 242, 254, 0.4)); }
+  50% { filter: drop-shadow(0 0 5px rgba(240, 147, 251, 0.75)); }
+}
+
+/* 复古大头电脑屏幕微弱闪烁 */
+.xpet-gear-retro_mac line {
+  animation: xpet-crt-blink 1.8s steps(2, start) infinite;
+}
+@keyframes xpet-crt-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* 金杯星芒微闪 */
+.xpet-gear-trophy polygon {
+  animation: xpet-gold-shine 2.8s ease-in-out infinite;
+  transform-origin: 16px 15px;
+}
+@keyframes xpet-gold-shine {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.18); opacity: 1; filter: drop-shadow(0 0 3px #fff); }
 }
 
 /* 今日小结卡片 */
@@ -182,16 +241,7 @@
   #xpet-summary .xpet-sum-foot { border-top-color: #444; color: #6fd08c; }
 }
 
-/* 宠物在旁边做的事：道具/打盹/哈欠，叠在身体左下 */
-#xpet-root .xpet-prop {
-  position: absolute; left: 2px; bottom: 2px; font-size: 18px; line-height: 1; pointer-events: none;
-  transform-origin: 50% 100%;
-}
-#xpet-root .xpet-prop-busy { animation: xpet-prop-bob 2.6s ease-in-out infinite; }
-#xpet-root .xpet-prop-idle, #xpet-root .xpet-prop-night { animation: xpet-prop-float 3.2s ease-in-out infinite; }
-@keyframes xpet-prop-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-@keyframes xpet-prop-float { 0%, 100% { transform: translateY(0); opacity: 0.85; } 50% { transform: translateY(-4px); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { #xpet-root .xpet-prop { animation: none; } }
+
 
 /* 精灵图：把一张横排的长图按帧播放（steps），帧数/速度由内联样式设置 */
 #xpet-root .xpet-sprite {
@@ -207,5 +257,5 @@
 }
 @keyframes xpet-sprite { from { background-position-x: 0%; } to { background-position-x: 100%; } }
 #xpet-root .xpet-has-sprite > svg, #xpet-root .xpet-has-sprite > img { visibility: hidden; }
-#xpet-root .xpet-prop { font-size: calc(18px * var(--xs, 1)); }
+
 @media (prefers-reduced-motion: reduce) { #xpet-root .xpet-sprite { animation: none !important; } }

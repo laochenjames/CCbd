@@ -203,33 +203,23 @@
     lookRow.insertBefore(lookSel, lookRow.lastChild);
     card.appendChild(lookRow);
 
-    // 装扮：用累计经验解锁（自动解锁，不需要领取）
+    // 工位伴侣装备：用累计经验解锁（自动解锁，不需要领取）
     const accRow = el('div', { className: 'acc-row' });
-    accRow.appendChild(el('span', { textContent: '装扮：' }));
+    accRow.appendChild(el('span', { textContent: '工位伴侣装备：' }));
     const sel = el('select');
     XPET.ACCESSORIES.forEach((a) => {
       const locked = a.need > xpTotal;
       sel.appendChild(el('option', {
         value: a.id,
         disabled: locked,
-        textContent: `${a.emoji} ${a.name}`.trim() + (locked ? `（累计 ${a.need} 经验解锁）` : ''),
+        textContent: `${a.icon} ${a.name}`.trim() + (locked ? `（累计 ${a.need} 经验解锁）` : ''),
       }));
     });
     sel.value = c.accessory || 'none';
     sel.addEventListener('change', () => { c.accessory = sel.value; saveSoon(); });
     accRow.appendChild(sel);
-    accRow.appendChild(el('span', { className: 'hint', textContent: `　已累计 ${xpTotal} 经验` }));
+    accRow.appendChild(el('span', { className: 'hint', textContent: `　已累计 ${xpTotal} 经验 · 摆在宠物身前桌角` }));
     card.appendChild(accRow);
-
-    const actRow = el('div', { className: 'acc-row' });
-    actRow.appendChild(el('span', { textContent: '在旁边做的事：' }));
-    const actSel = el('select');
-    XPET.ACTIVITIES.forEach(([v, t]) => actSel.appendChild(el('option', { value: v, textContent: t })));
-    actSel.value = c.activity || 'book';
-    actSel.addEventListener('change', () => { c.activity = actSel.value; saveSoon(); });
-    actRow.appendChild(actSel);
-    actRow.appendChild(el('span', { className: 'hint', textContent: '　你在用页面时它拿着；你停下来它打盹；深夜它打哈欠' }));
-    card.appendChild(actRow);
 
     const sizeRow = el('div', { className: 'acc-row' });
     sizeRow.appendChild(el('span', { textContent: '显示大小：' }));

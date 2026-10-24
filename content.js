@@ -67,24 +67,83 @@
   let xpDays = 0; // 累计陪伴天数（有记录的天数，累计不是连续）
   let storyTitle = ''; // 最近解锁的小本子标题，给「写了新的一页」台词用
 
-  // ---------- 姿态：你在用页面 → 拿着道具；停下来 → 打盹；深夜 → 打哈欠 ----------
-  let propEl = null, curPropKey = null, lastPoseActive = true, curPoseKey = "busy"; // 刚打开页面算在用，不要一上来就打盹
+  // ---------- 工位装备与桌面伴侣道具 SVG ----------
+  const GEAR_SVGS = {
+    coffee: `
+      <svg viewBox="0 0 32 32" class="xpet-gear-svg">
+        <path class="xpet-steam steam-1" d="M11 9 C10 7 12 5 11 3" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+        <path class="xpet-steam steam-2" d="M17 10 C16 8 18 6 17 4" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+        <path d="M6 13 L22 13 L20 27 C20 29 18 30 16 30 L12 30 C10 30 8 29 8 27 Z" fill="#ffffff" stroke="#d5dbe1" stroke-width="1.2"/>
+        <path d="M21 16 C25 16 26 21 21 23" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+        <ellipse cx="14" cy="13" rx="7" ry="2.2" fill="#6f4e37"/>
+        <path d="M14 19 C12 18 11 20 14 22 C17 20 16 18 14 19 Z" fill="#ff7675"/>
+      </svg>`,
+    duck: `
+      <svg viewBox="0 0 32 32" class="xpet-gear-svg">
+        <circle cx="16" cy="12" r="7.5" fill="#fbc531"/>
+        <ellipse cx="18" cy="22" rx="9" ry="7" fill="#fbc531"/>
+        <path d="M23 20 C27 21 28 24 23 25 Z" fill="#fbc531"/>
+        <circle cx="13" cy="10.5" r="1.4" fill="#2f3640"/>
+        <path d="M8 12 C4 12 4 15 8 16 C10 15 10 12.5 8 12 Z" fill="#e17055"/>
+      </svg>`,
+    plant: `
+      <svg viewBox="0 0 32 32" class="xpet-gear-svg">
+        <path d="M9 19 L23 19 L21 30 L11 30 Z" fill="#dfe6e9"/>
+        <ellipse cx="16" cy="19" rx="7" ry="2" fill="#576574"/>
+        <path d="M16 19 C12 14 13 10 16 8 C19 10 20 14 16 19 Z" fill="#10ac84"/>
+        <path d="M12 18 C8 14 10 11 13 11 C14 14 14 17 12 18 Z" fill="#1dd1a1"/>
+        <path d="M20 18 C24 14 22 11 19 11 C18 14 18 17 20 18 Z" fill="#10ac84"/>
+      </svg>`,
+    cyber_laptop: `
+      <svg viewBox="0 0 34 32" class="xpet-gear-svg">
+        <defs>
+          <linearGradient id="cyber-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00f2fe"/>
+            <stop offset="50%" stop-color="#4facfe"/>
+            <stop offset="100%" stop-color="#f093fb"/>
+          </linearGradient>
+        </defs>
+        <rect x="5" y="10" width="22" height="15" rx="2" fill="#1e1e24" stroke="url(#cyber-grad)" stroke-width="1.5"/>
+        <rect x="7" y="12" width="18" height="11" rx="1" fill="#0c0d12"/>
+        <circle cx="16" cy="17.5" r="2.8" fill="url(#cyber-grad)" opacity="0.9"/>
+        <path d="M2 25 L30 25 L28 29 L4 29 Z" fill="#2d3139"/>
+        <line x1="8" y1="27" x2="24" y2="27" stroke="url(#cyber-grad)" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>`,
+    retro_mac: `
+      <svg viewBox="0 0 32 32" class="xpet-gear-svg">
+        <rect x="6" y="8" width="20" height="20" rx="3" fill="#eae3d2" stroke="#bcb099" stroke-width="1.2"/>
+        <rect x="9" y="11" width="14" height="11" rx="1.5" fill="#1e272e"/>
+        <line x1="11" y1="14" x2="15" y2="14" stroke="#0be881" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="11" y1="17" x2="19" y2="17" stroke="#0be881" stroke-width="1.2" stroke-linecap="round"/>
+        <rect x="9" y="24" width="8" height="1.5" rx="0.5" fill="#718093"/>
+        <circle cx="21" cy="24.5" r="1" fill="#ff3838"/>
+      </svg>`,
+    trophy: `
+      <svg viewBox="0 0 32 32" class="xpet-gear-svg">
+        <defs>
+          <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffeaa7"/>
+            <stop offset="50%" stop-color="#fdcb6e"/>
+            <stop offset="100%" stop-color="#e17055"/>
+          </linearGradient>
+        </defs>
+        <path d="M8 9 C3 9 3 17 8 17 M24 9 C29 9 29 17 24 17" fill="none" stroke="url(#gold-grad)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M8 7 L24 7 L22 18 C22 22 18 23 16 23 C14 23 10 22 10 18 Z" fill="url(#gold-grad)"/>
+        <path d="M14 23 L14 27 L18 27 L18 23 Z" fill="#fdcb6e"/>
+        <rect x="10" y="27" width="12" height="3" rx="1" fill="#2d3436"/>
+        <polygon points="16,11 17.5,14 20.5,14 18,16 19,19 16,17.5 13,19 14,16 11.5,14 14.5,14" fill="#ffffff" opacity="0.95"/>
+      </svg>`
+  };
+
+  // ---------- 姿态：在用页面 → 正常工作；停下来 → 打盹；深夜 → 打哈欠 ----------
+  let lastPoseActive = true, curPoseKey = "busy"; // 刚打开页面算在用，不要一上来就打盹
   function updatePose(active) {
     lastPoseActive = active;
-    if (!propEl) return;
     let night = false;
     try { // settings 在脚本稍后才初始化，早期调用时忽略
       night = !!(settings.reminders.night && XPET.inWindow(new Date().getHours(), settings.reminders.nightStart, settings.reminders.nightEnd));
     } catch (e) {}
-    const act = activeChar().activity || 'book';
-    const key = !active ? 'idle' : night ? 'night' : act;
-    curPoseKey = key;
-    if (key !== curPropKey) {
-      curPropKey = key;
-      const emoji = key === 'idle' ? '💤' : key === 'night' ? '🥱' : XPET.PROP_EMOJI[key] || '';
-      propEl.textContent = emoji;
-      propEl.className = 'xpet-prop xpet-prop-' + (key === 'idle' || key === 'night' ? key : 'busy');
-    }
+    curPoseKey = !active ? 'idle' : night ? 'night' : 'busy';
     applySprite();
   }
 
@@ -182,20 +241,25 @@
     spriteEl.style.display = 'none';
     body.appendChild(spriteEl);
     spriteState = null;
-    propEl = document.createElement('div');
-    propEl.className = 'xpet-prop';
-    body.appendChild(propEl);
-    curPropKey = null;
     applySize();
     updatePose(lastPoseActive);
-    // 装扮：只在已解锁时显示；emoji 来自内置白名单，不使用用户输入
+    renderGear();
+  }
+
+  // ---------- 工位伴侣装备渲染 ----------
+  let gearEl = null;
+  function renderGear() {
+    if (gearEl) { gearEl.remove(); gearEl = null; }
+    const c = activeChar();
     const acc = XPET.ACCESSORIES.find((a) => a.id === c.accessory);
-    if (acc && acc.emoji && acc.need <= xpTotal) {
-      const el = document.createElement('div');
-      el.className = 'xpet-acc';
-      el.textContent = acc.emoji;
-      body.appendChild(el);
-    }
+    if (!acc || acc.id === 'none' || acc.need > xpTotal) return;
+    const svg = GEAR_SVGS[acc.id];
+    if (!svg) return;
+    gearEl = document.createElement('div');
+    gearEl.className = 'xpet-desk-gear xpet-gear-' + acc.id;
+    gearEl.title = acc.name + ' · ' + acc.desc;
+    gearEl.innerHTML = svg;
+    root.appendChild(gearEl);
   }
 
   async function reloadChars() {
@@ -808,7 +872,7 @@
   let settleInfo = { when: '昨天', gain: 0 }; // 最近一次结算到账的信息，给「昨日到账」台词用
   function nextHint() {
     const next = XPET.ACCESSORIES.find((a) => a.need > xpTotal);
-    return next ? `${next.emoji}${next.name} 还差 ${next.need - xpTotal}` : '装扮都集齐啦';
+    return next ? `${next.icon}${next.name} 还差 ${next.need - xpTotal}` : '装备都集齐啦';
   }
   const dayStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const todayXp = () => XPET.calcXp(Math.floor(totalSeconds() / 60), settings.goal);
@@ -938,7 +1002,7 @@
     rows.push(['做了', did.length ? did.join('，') : '安安静静地看了看']);
 
     const next = XPET.ACCESSORIES.find((a) => a.need > xpTotal);
-    rows.push(['经验', `今天预计 +${todayXp()}（今晚自动结算）· 累计 ${xpTotal}` + (next ? ` · 下一件 ${next.emoji}${next.name} 还差 ${next.need - xpTotal}` : '')]);
+    rows.push(['经验', `今天预计 +${todayXp()}（今晚自动结算）· 累计 ${xpTotal}` + (next ? ` · 下一件装备 ${next.icon}${next.name} 还差 ${next.need - xpTotal}` : '')]);
 
     summaryEl = document.createElement('div');
     summaryEl.id = 'xpet-summary';

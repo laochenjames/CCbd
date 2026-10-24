@@ -130,7 +130,7 @@ const XPET = {
   // 内置形象：look 为 'teddy'（泰迪犬）或 'slime'（小史莱姆）；没有上传自定义图片时使用
   builtinChar(look) {
     const names = { teddy: '泰迪', slime: '小史莱姆', cat: '哈基米' };
-    return { id: look, name: names[look], img: null, look, accessory: "none", activity: "book", size: 1, sprites: {}, phrases: XPET.defaultPhrases() };
+    return { id: look, name: names[look], img: null, look, accessory: "none", size: 1, sprites: {}, phrases: XPET.defaultPhrases() };
   },
 
   // 全新安装：泰迪犬排第一，是默认角色；小史莱姆保留，二选一
@@ -272,15 +272,15 @@ const XPET = {
       },
     };
   },
-  // 装扮：用 emoji 叠在宠物头顶，用累计经验解锁。解锁是自动的，不需要领取，也没有连续天数要求。
-  // need 为所需累计经验；按每天满额 10 经验算，大约对应 1、3、7、14、30 个"达标日"。
+  // 工位装备与桌面伴侣道具：摆在宠物身边，随累计经验自动解锁。无需领取，无连续天数限制。
   ACCESSORIES: [
-    { id: 'none', name: '无装扮', emoji: '', need: 0 },
-    { id: 'bow', name: '蝴蝶结', emoji: '🎀', need: 10 },
-    { id: 'cap', name: '小帽子', emoji: '🧢', need: 30 },
-    { id: 'glasses', name: '墨镜', emoji: '🕶️', need: 70 },
-    { id: 'flower', name: '小花', emoji: '🌸', need: 140 },
-    { id: 'crown', name: '皇冠', emoji: '👑', need: 300 },
+    { id: 'none', name: '极简工位 (无)', icon: '🪑', need: 0, desc: '纯净桌面' },
+    { id: 'coffee', name: '暖心拿铁咖啡', icon: '☕', need: 10, desc: '冒着缕缕热气的陶瓷杯' },
+    { id: 'duck', name: '极客调试小黄鸭', icon: '🐥', need: 30, desc: '程序员经典桌面解压小鸭' },
+    { id: 'plant', name: '治愈多肉小盆栽', icon: '🪴', need: 70, desc: '静立桌角的小绿植' },
+    { id: 'cyber_laptop', name: '赛博霓虹电竞本', icon: '💻', need: 140, desc: '带RGB流光渐变电竞本' },
+    { id: 'retro_mac', name: '复古大头电脑', icon: '🖥️', need: 220, desc: '80年代经典米白CRT电脑' },
+    { id: 'trophy', name: '专注大师金奖杯', icon: '🏆', need: 300, desc: '散发金芒的荣耀成就' },
   ],
 
   // 每天结算一次经验（确定性，没有随机）：
@@ -319,13 +319,14 @@ const XPET = {
       phrases[k] = cur && !isLegacy ? cur : XPET.DEFAULT_PHRASES[k].slice();
     }
     const img = typeof c.img === 'string' && c.img.startsWith('data:image/') ? c.img : null;
-    const accessory = XPET.ACCESSORIES.some((a) => a.id === c.accessory) ? c.accessory : 'none';
+    const OLD_ACC_MAP = { bow: 'coffee', cap: 'duck', glasses: 'plant', flower: 'cyber_laptop', crown: 'trophy' };
+    const rawAcc = OLD_ACC_MAP[c.accessory] || c.accessory;
+    const accessory = XPET.ACCESSORIES.some((a) => a.id === rawAcc) ? rawAcc : 'none';
     const OLD_UNLOCK = ['今天也发了推，奖励一件 {name}', '连续出现的你，值得一件 {name}'];
     if (Array.isArray(phrases.unlock) && phrases.unlock.some((t) => OLD_UNLOCK.includes(t))) {
       phrases.unlock = XPET.DEFAULT_PHRASES.unlock.slice();
     }
     const look = c.look === 'teddy' || c.look === 'slime' || c.look === 'cat' ? c.look : 'slime'; // 老数据没有 look 字段，沿用原来的史莱姆
-    const activity = ['book', 'phone', 'laptop', 'none'].includes(c.activity) ? c.activity : 'book';
     const sprites = {};
     const raw = c.sprites && typeof c.sprites === 'object' ? c.sprites : {};
     const n = (v, lo, hi, d) => { const x = Math.floor(Number(v)); return Number.isFinite(x) && x >= lo && x <= hi ? x : d; };
@@ -337,7 +338,7 @@ const XPET = {
       sprites[st] = { frames, fps: n(m.fps, 1, 30, 8), fw, fh };
     }
     const size = XPET.SIZES.some(([v]) => v === c.size) ? c.size : ((c.id === 'teddy' || c.id === 'cat') && c.size === undefined ? 1.6 : 1); // 内置泰迪的动画画面更精细，默认用「大」
-    return { id: String(c.id), name: String(c.name || '未命名'), img, look, accessory, activity, size, sprites, phrases };
+    return { id: String(c.id), name: String(c.name || '未命名'), img, look, accessory, size, sprites, phrases };
   },
 
   async load() {
