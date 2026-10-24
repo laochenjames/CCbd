@@ -163,7 +163,6 @@
     clearTimeout(forceTimer);
     forceTimer = setTimeout(applySprite, ms + 50);
   }
-  function setPropHidden(h) { if (propEl) propEl.style.visibility = h ? 'hidden' : ''; }
   function applySprite() {
     if (!spriteEl) return;
     const c = activeChar();
@@ -173,10 +172,8 @@
       spriteEl.style.display = 'none';
       body.classList.remove('xpet-has-sprite');
       spriteState = null;
-      setPropHidden(false);
       return;
     }
-    setPropHidden(use === want); // 这个状态有专门的图时，图里已经画了道具，不再叠 emoji
     if (use === spriteState) return;
     const src = XPET.spriteFor(c, use);
     const token = ++spriteToken;
