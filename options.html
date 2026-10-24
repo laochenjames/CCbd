@@ -40,6 +40,7 @@
       <label class="row">下限：<input type="number" id="s-goalMin" class="num" min="0" max="1440"> 分钟（0 = 不设下限；低于下限只给一部分，按比例）</label>
       <label class="row">上限：<input type="number" id="s-goalMax" class="num" min="0" max="1440"> 分钟（0 = 不设上限）</label>
       <label class="row">超出上限后：每多一分钟逐渐减少，用满 <input type="number" id="s-goalGrace" class="num" min="1" max="1440"> 分钟后当天经验降为 0</label>
+      <label class="row">满额基础经验：<input type="number" id="s-goalBase" class="num" min="1" max="1000"> 经验值（达标后每日获得的满额 XP）</label>
       <p class="hint">超出上限不会扣已有的经验，也没有任何惩罚提示；最低为 0。</p>
     </section>
 
@@ -56,6 +57,24 @@
     <section class="history" id="settings">
       <h2>显示与提醒</h2>
       <p class="hint">点开分组查看；不需要的功能可以在这里关掉，修改会立刻生效。</p>
+
+      <details class="grp" open><summary>外观与交互偏好</summary>
+      <label class="row">宠物不透明度：
+        <input type="range" id="s-opacity" min="30" max="100" step="5" style="vertical-align:middle; width:140px;">
+        <span id="s-opacityVal" style="display:inline-block; width:45px; font-weight:600;">100%</span>
+        <span class="hint">（鼠标悬停或拖拽时会自动恢复 100%）</span>
+      </label>
+      <label class="row">台词气泡停留时长：
+        <select id="s-bubbleTime">
+          <option value="1500">较短 (1.5 秒)</option>
+          <option value="2500">标准 (2.5 秒)</option>
+          <option value="4000">较长 (4.0 秒)</option>
+          <option value="6000">慢读 (6.0 秒)</option>
+        </select>
+      </label>
+      <label class="row"><input type="checkbox" id="s-sound"> 开启点击互动音效（治愈轻柔的 Web Audio 气泡音）</label>
+      <label class="row"><input type="checkbox" id="s-hotkey"> 允许使用全局快捷键 <kbd>Alt + P</kbd> 快速隐藏 / 唤出桌宠</label>
+      </details>
 
       <details class="grp"><summary>今日统计</summary>
       <label class="row">显示方式：

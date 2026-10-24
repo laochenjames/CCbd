@@ -302,7 +302,14 @@
     $('s-goalMin').value = settings.goal.minMinutes;
     $('s-goalMax').value = settings.goal.maxMinutes;
     $('s-goalGrace').value = settings.goal.graceMinutes;
+    $('s-goalBase').value = settings.goal.baseXp || 10;
     renderGoalSummary();
+    const ap = settings.appearance || {};
+    $('s-opacity').value = ap.opacity !== undefined ? ap.opacity : 100;
+    $('s-opacityVal').textContent = (ap.opacity !== undefined ? ap.opacity : 100) + '%';
+    $('s-bubbleTime').value = String(ap.bubbleTime || 2500);
+    $('s-sound').checked = ap.sound !== false;
+    $('s-hotkey').checked = ap.hotkey !== false;
     $('s-greet').checked = settings.greeting.enabled;
     renderSlots();
     $('s-back').checked = settings.back.enabled;
@@ -326,6 +333,21 @@
 
   $('s-chipMode').addEventListener('change', (e) => { settings.chipMode = e.target.value; saveSettingsNow(); });
   itemBoxes.forEach((b) => b.addEventListener('change', () => { settings.chipItems[b.dataset.item] = b.checked; saveSettingsNow(); }));
+  $('s-opacity').addEventListener('input', (e) => {
+    const v = intIn(e.target, 30, 100, 100);
+    $('s-opacityVal').textContent = v + '%';
+    settings.appearance = settings.appearance || {};
+    settings.appearance.opacity = v;
+    saveSettingsNow();
+  });
+  $('s-bubbleTime').addEventListener('change', (e) => {
+    const v = intIn(e.target, 1000, 8000, 2500);
+    settings.appearance = settings.appearance || {};
+    settings.appearance.bubbleTime = v;
+    saveSettingsNow();
+  });
+  bindCheck('s-sound', (v) => { settings.appearance = settings.appearance || {}; settings.appearance.sound = v; });
+  bindCheck('s-hotkey', (v) => { settings.appearance = settings.appearance || {}; settings.appearance.hotkey = v; });
   bindCheck('s-tired', (v) => { settings.reminders.tired = v; });
   bindNum('s-tiredMin', 5, 720, () => settings.reminders.tiredMinutes, (v) => { settings.reminders.tiredMinutes = v; });
   bindCheck('s-cap', (v) => { settings.reminders.cap = v; });
@@ -340,6 +362,7 @@
   bindNum('s-goalMin', 0, 1440, () => settings.goal.minMinutes, (v) => { settings.goal.minMinutes = v; });
   bindNum('s-goalMax', 0, 1440, () => settings.goal.maxMinutes, (v) => { settings.goal.maxMinutes = v; });
   bindNum('s-goalGrace', 1, 1440, () => settings.goal.graceMinutes, (v) => { settings.goal.graceMinutes = v; });
+  bindNum('s-goalBase', 1, 1000, () => settings.goal.baseXp, (v) => { settings.goal.baseXp = v; });
   // ---------- 时段问候 ----------
   function renderSlots() {
     const box = $('greet-slots');

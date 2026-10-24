@@ -200,6 +200,12 @@ const XPET = {
       back: { enabled: true, minutes: 90 }, // 同一天内离开超过这么久再回来，说一句「回来啦」
       milestone: true, // 累计陪伴天数里程碑
       stories: { enabled: true }, // 小本子：解锁提示 + 点击宠物时偶尔说一句碎碎念
+      appearance: {
+        opacity: 100, // 宠物不透明度（30% ~ 100%），鼠标悬停自动恢复 100%
+        bubbleTime: 2500, // 台词停留时间（毫秒，1000 ~ 8000）
+        sound: true, // 点击轻柔气泡音效 (Web Audio API)
+        hotkey: true, // 快捷键 Alt+P 暂时隐藏/显示桌宠
+      },
     };
   },
   mergeSettings(raw) {
@@ -210,7 +216,7 @@ const XPET = {
       v = Math.floor(Number(v));
       return Number.isFinite(v) && v >= min && v <= max ? v : def;
     };
-    const rem = raw.reminders || {}, gl = raw.goal || {};
+    const rem = raw.reminders || {}, gl = raw.goal || {}, ap = raw.appearance || {};
     const gr = raw.greeting && typeof raw.greeting === 'object' ? raw.greeting : {};
     let slots = Array.isArray(gr.slots) ? gr.slots : d.greeting.slots;
     slots = slots.slice(0, 8).map((x, i) => ({
@@ -251,6 +257,12 @@ const XPET = {
         nightStart: int(rem.nightStart, 0, 23, d.reminders.nightStart),
         nightEnd: int(rem.nightEnd, 0, 23, d.reminders.nightEnd),
         cap: bool(rem.cap, d.reminders.cap),
+      },
+      appearance: {
+        opacity: int(ap.opacity, 30, 100, d.appearance.opacity),
+        bubbleTime: int(ap.bubbleTime, 1000, 8000, d.appearance.bubbleTime),
+        sound: bool(ap.sound, d.appearance.sound),
+        hotkey: bool(ap.hotkey, d.appearance.hotkey),
       },
       goal: {
         minMinutes: int(gl.minMinutes, 0, 1440, d.goal.minMinutes),

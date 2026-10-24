@@ -8,6 +8,11 @@
   -webkit-user-select: none;
   touch-action: none;
   pointer-events: auto;
+  opacity: var(--xpet-opacity, 1);
+  transition: opacity 0.25s ease;
+}
+#xpet-root:hover, #xpet-root.xpet-dragging {
+  opacity: 1 !important;
 }
 #xpet-root.xpet-dragging { cursor: grabbing; }
 

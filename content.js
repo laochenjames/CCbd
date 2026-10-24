@@ -286,6 +286,8 @@
   }
   function applySettings() {
     tiredBaseline = null; // 提醒间隔改了，重新以当前时长为起点，避免立刻补发提醒
+    const op = (settings.appearance && settings.appearance.opacity !== undefined) ? settings.appearance.opacity / 100 : 1;
+    root.style.setProperty('--xpet-opacity', String(op));
     refreshChip();
   }
   async function reloadSettings() {
@@ -300,11 +302,13 @@
 
   // ---------- 说话 ----------
   let bubbleTimer = null;
-  function say(text, ms = 2000) {
+  function say(text, ms) {
+    const base = (settings.appearance && settings.appearance.bubbleTime) || 2500;
+    const dur = ms ? Math.round(ms * (base / 2500)) : base;
     bubble.textContent = text; // 用 textContent，用户自定义台词不会被当成 HTML
     bubble.classList.add('xpet-show');
     clearTimeout(bubbleTimer);
-    bubbleTimer = setTimeout(() => bubble.classList.remove('xpet-show'), ms);
+    bubbleTimer = setTimeout(() => bubble.classList.remove('xpet-show'), dur);
   }
 
   // 取一句台词（带占位符替换）；没有台词返回空字符串
@@ -357,8 +361,30 @@
     return mins < 3 ? 'clickEarly' : 'click';
   }
 
+  // 气泡啵啵微音效（纯原生 Web Audio API，无需外部音频资源）
+  let audioCtx = null;
+  function playPopSound() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      const now = audioCtx.currentTime;
+      osc.frequency.setValueAtTime(460, now);
+      osc.frequency.exponentialRampToValueAtTime(820, now + 0.08);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } catch (e) {}
+  }
+
   function poke() {
     if (dead) { say('扩展已更新，请刷新页面（F5）', 5000); return; }
+    if (settings.appearance && settings.appearance.sound) playPopSound();
     restartClass('xpet-jump');
     const c = activeChar();
     const sp = XPET.spriteFor(c, 'poke');
@@ -439,6 +465,7 @@
     });
     addItem(menu, '今日小结', openSummary, 'xpet-menu-sep');
     addItem(menu, '今日统计', () => showChipFor(5000));
+    addItem(menu, '暂时隐藏 (Alt+P)', toggleHide);
     addItem(menu, '设置 / 添加角色…', () => {
       try { chrome.runtime.sendMessage({ type: 'openOptions' }); } catch (_) {}
     });
@@ -447,6 +474,25 @@
     menu.style.left = Math.max(MARGIN, Math.min(e.clientX, window.innerWidth - mw - MARGIN)) + 'px';
     menu.style.top = Math.max(MARGIN, Math.min(e.clientY, window.innerHeight - mh - MARGIN)) + 'px';
   });
+
+  let isHiddenByHotkey = false;
+  function toggleHide() {
+    isHiddenByHotkey = !isHiddenByHotkey;
+    root.style.visibility = isHiddenByHotkey ? 'hidden' : 'visible';
+    closeMenu();
+    closeSummary();
+    if (!isHiddenByHotkey) say('我回来啦～', 1800);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+      if (settings.appearance && settings.appearance.hotkey !== false) {
+        e.preventDefault();
+        toggleHide();
+      }
+    }
+  });
+
   document.addEventListener('pointerdown', (e) => {
     if (menu && !menu.contains(e.target)) closeMenu();
   }, true);
