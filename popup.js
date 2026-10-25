@@ -1,4 +1,4 @@
-// popup.js: X桌宠快捷开关弹窗面板
+// popup.js: CCbd 伴宠快捷开关弹窗面板
 (async function () {
   'use strict';
 
@@ -20,10 +20,10 @@
       currentTab = tabs[0];
     }
   } catch (err) {
-    console.warn('[X-Pet Popup] 获取当前标签页失败:', err);
+    console.warn('[CCbd Popup] 获取当前标签页失败:', err);
   }
 
-  // 2. 加载桌宠配置
+  // 2. 加载伴宠配置
   try {
     settings = await XPET.loadSettings();
   } catch (err) {
@@ -61,7 +61,7 @@
       const isEnabled = settings.sites && settings.sites[siteKey] !== false;
       if (isEnabled) {
         tabStatusEl.className = 'status-card active';
-        tabTextEl.innerHTML = `当前页面：<b>${siteName}</b>（桌宠已启用）`;
+        tabTextEl.innerHTML = `当前页面：<b>${siteName}</b>（伴宠已启用）`;
       } else {
         tabStatusEl.className = 'status-card inactive';
         tabTextEl.innerHTML = `当前页面：<b>${siteName}</b>（已关闭，勾选后刷新）`;

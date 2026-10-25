@@ -4,7 +4,7 @@ html = '''<!DOCTYPE html>
 <html>
 <head>
 <meta charset='utf-8'>
-<title>X桌宠动效与工位装备优化效果预览</title>
+<title>CCbd 伴宠动效与工位装备优化效果预览</title>
 <style>
 body { background: #14171a; color: #e1e8ed; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 28px; line-height: 1.5; }
 h1 { margin-bottom: 6px; font-size: 24px; font-weight: 700; color: #1da1f2; }
@@ -40,7 +40,7 @@ p.desc { color: #8899a6; margin-bottom: 24px; font-size: 14px; max-width: 850px;
 </style>
 </head>
 <body>
-<h1>🐾 X 桌宠（CCbd）动效与全新工位装备预览</h1>
+<h1>🐾 CCbd 伴宠动效与全新工位装备预览</h1>
 <p class='desc'>
 本页面展示精灵图生理节奏优化（消除24fps抽搐）、以及全新设计的【工位伴侣装备】（替代原先粗糙的头顶Emoji，并移除废弃的“在旁边做的事”）。
 </p>

@@ -607,8 +607,8 @@
     const all = await chrome.storage.local.get(null);
     const data = {};
     Object.keys(all).forEach((k) => { if (BACKUP_KEYS.includes(k) || k.startsWith(XPET.SPRITE_PREFIX)) data[k] = all[k]; });
-    const blob = new Blob([JSON.stringify({ app: 'x-pet', version: chrome.runtime.getManifest().version, exportedAt: new Date().toISOString(), data })], { type: 'application/json' });
-    const a = el('a', { href: URL.createObjectURL(blob), download: `x-pet-backup-${new Date().toISOString().slice(0, 10)}.json` });
+    const blob = new Blob([JSON.stringify({ app: 'ccbd', version: chrome.runtime.getManifest().version, exportedAt: new Date().toISOString(), data })], { type: 'application/json' });
+    const a = el('a', { href: URL.createObjectURL(blob), download: `ccbd-backup-${new Date().toISOString().slice(0, 10)}.json` });
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     showStatus('已导出备份', true);
@@ -621,9 +621,9 @@
     if (!f) return;
     try {
       const obj = JSON.parse(await f.text());
-      const d = obj && obj.app === 'x-pet' && obj.data;
+      const d = obj && (obj.app === 'ccbd' || obj.app === 'x-pet') && obj.data;
       const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
-      if (!isObj(d)) throw new Error('不是 X 桌宠的备份文件');
+      if (!isObj(d)) throw new Error('不是 CCbd 伴宠的备份文件');
       const out = {};
       if (d[XPET.KEYS.chars] !== undefined) { if (!Array.isArray(d[XPET.KEYS.chars])) throw new Error('角色数据格式不对'); out[XPET.KEYS.chars] = d[XPET.KEYS.chars]; }
       if (typeof d[XPET.KEYS.active] === 'string') out[XPET.KEYS.active] = d[XPET.KEYS.active];

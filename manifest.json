@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "X 桌宠",
+  "name": "CCbd 伴宠",
   "version": "0.11.0",
-  "description": "一只陪你逛推特、币安广场、OK星球的卡通小伙伴，可自定义角色和台词。",
+  "description": "一只陪你逛推特、币安广场、OK星球的卡通伴宠，可自定义角色、装扮和台词。",
   "permissions": [
     "storage",
     "unlimitedStorage",
@@ -12,7 +12,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "X 桌宠 · 快捷开关",
+    "default_title": "CCbd 伴宠 · 快捷开关",
     "default_popup": "popup.html"
   },
   "options_ui": {

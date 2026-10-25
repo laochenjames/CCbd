@@ -209,7 +209,7 @@ const XPET = {
         opacity: 100, // 宠物不透明度（30% ~ 100%），鼠标悬停自动恢复 100%
         bubbleTime: 2500, // 台词停留时间（毫秒，1000 ~ 8000）
         sound: true, // 点击轻柔气泡音效 (Web Audio API)
-        hotkey: true, // 快捷键 Alt+P 暂时隐藏/显示桌宠
+        hotkey: true, // 快捷键 Alt+P 暂时隐藏/显示伴宠
       },
     };
   },
