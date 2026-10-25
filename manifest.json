@@ -5,10 +5,15 @@
   "description": "一只陪你逛推特、币安广场、OK星球的卡通小伙伴，可自定义角色和台词。",
   "permissions": [
     "storage",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "activeTab"
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "X 桌宠 · 快捷开关",
+    "default_popup": "popup.html"
   },
   "options_ui": {
     "page": "options.html",
@@ -23,7 +28,13 @@
         "https://*.binance.com/*",
         "https://binance.com/*",
         "https://*.okx.com/*",
-        "https://okx.com/*"
+        "https://okx.com/*",
+        "https://*.okx.cab/*",
+        "https://okx.cab/*",
+        "https://*.okx.me/*",
+        "https://okx.me/*",
+        "https://*.ouyi.com/*",
+        "https://ouyi.com/*"
       ],
       "js": [
         "shared.js",
@@ -49,7 +60,13 @@
         "https://*.binance.com/*",
         "https://binance.com/*",
         "https://*.okx.com/*",
-        "https://okx.com/*"
+        "https://okx.com/*",
+        "https://*.okx.cab/*",
+        "https://okx.cab/*",
+        "https://*.okx.me/*",
+        "https://okx.me/*",
+        "https://*.ouyi.com/*",
+        "https://ouyi.com/*"
       ]
     }
   ]

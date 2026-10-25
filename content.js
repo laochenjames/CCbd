@@ -359,10 +359,15 @@
       // 仅在币安广场页面生效（/square, /feed）
       return path.includes('/square') || path.includes('/feed');
     }
-    if (host.includes('okx.com')) {
+    if (host.includes('okx.') || host.includes('ouyi.')) {
       if (sites.okx === false) return false;
-      // 仅在OK星球与社区页面生效（/square, /community）
-      return path.includes('/square') || path.includes('/community');
+      // OK星球官方为 Orbit，兼容 square、community、feed、social、insights、post 及页面标题带"星球"或"Orbit"
+      const full = (location.href + ' ' + (document.title || '')).toLowerCase();
+      return full.includes('/orbit') || full.includes('/square') ||
+             full.includes('/community') || full.includes('/feed') ||
+             full.includes('/social') || full.includes('/insights') ||
+             full.includes('/discover') || full.includes('/post') ||
+             full.includes('/article') || full.includes('星球') || full.includes('orbit');
     }
     return false;
   }

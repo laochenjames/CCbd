@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>X 桌宠 · 快捷开关</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-wrap">
+    <!-- 头部 -->
+    <header class="header">
+      <div class="brand">
+        <span class="logo">🐾</span>
+        <div>
+          <h1 class="title">X 桌宠</h1>
+          <span class="sub">工位伴侣 · 快捷站点控制</span>
+        </div>
+      </div>
+      <span class="badge">v0.11.0</span>
+    </header>
+
+    <!-- 当前标签页状态检测 -->
+    <div id="tab-status" class="status-card">
+      <span class="dot"></span>
+      <span id="tab-text" class="status-text">检测当前页面中…</span>
+    </div>
+
+    <!-- 生效站点快捷开关 -->
+    <section class="section">
+      <div class="section-head">
+        <span class="section-title">生效站点开关</span>
+      </div>
+
+      <div class="site-list">
+        <!-- 推特 -->
+        <label class="site-item" for="pop-x">
+          <div class="site-info">
+            <span class="site-icon">𝕏</span>
+            <div class="site-text">
+              <span class="site-name">X / Twitter (推特)</span>
+              <span class="site-desc">主页动态、发推、点赞、关注</span>
+            </div>
+          </div>
+          <input type="checkbox" id="pop-x" class="toggle-input">
+          <span class="toggle-slider"></span>
+        </label>
+
+        <!-- 币安广场 -->
+        <label class="site-item" for="pop-binance">
+          <div class="site-info">
+            <span class="site-icon">🟡</span>
+            <div class="site-text">
+              <span class="site-name">币安广场 (Binance Square)</span>
+              <span class="site-desc">广场动态、创作者 Feed、发文</span>
+            </div>
+          </div>
+          <input type="checkbox" id="pop-binance" class="toggle-input">
+          <span class="toggle-slider"></span>
+        </label>
+
+        <!-- OK星球 -->
+        <label class="site-item" for="pop-okx">
+          <div class="site-info">
+            <span class="site-icon">🔵</span>
+            <div class="site-text">
+              <span class="site-name">OK星球 (OKX Orbit / 社区)</span>
+              <span class="site-desc">星球观点、动态讨论、创作者</span>
+            </div>
+          </div>
+          <input type="checkbox" id="pop-okx" class="toggle-input">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- 刷新提示与快捷刷新按钮 -->
+    <div class="tip-card">
+      <div class="tip-content">
+        <span class="tip-icon">💡</span>
+        <span class="tip-msg">修改开关后，已打开的页面<b>刷新即可生效</b>（绝不打扰交易盘）。</span>
+      </div>
+      <button id="btn-reload" type="button" class="btn-refresh">🔄 立即刷新当前页</button>
+    </div>
+
+    <!-- 底部操作入口 -->
+    <footer class="footer">
+      <button id="btn-options" type="button" class="btn-sub">⚙️ 完整设置与小本子日历…</button>
+    </footer>
+  </div>
+
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
