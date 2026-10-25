@@ -52,7 +52,6 @@
 
   const root = document.createElement('div');
   root.id = 'xpet-root';
-  root.style.display = 'none'; // 初始隐藏，等检测当前站点与页面允许后再显示
   root.innerHTML = '<div class="xpet-bubble"></div><div class="xpet-body"></div><div class="xpet-chip"></div>';
   document.body.appendChild(root);
   const bubble = root.querySelector('.xpet-bubble');
@@ -368,6 +367,7 @@
     return false;
   }
 
+  let isHiddenByHotkey = false;
   function updateSiteVisibility() {
     const allowed = checkSiteAllowed(settings);
     root.style.display = (allowed && !isHiddenByHotkey) ? '' : 'none';
@@ -382,6 +382,7 @@
     }
   }, 500);
   window.addEventListener('popstate', updateSiteVisibility);
+  updateSiteVisibility(); // 启动时立即执行一次可见性校验
 
   function applySettings() {
     tiredBaseline = null; // 提醒间隔改了，重新以当前时长为起点，避免立刻补发提醒
@@ -575,7 +576,6 @@
     menu.style.top = Math.max(MARGIN, Math.min(e.clientY, window.innerHeight - mh - MARGIN)) + 'px';
   });
 
-  let isHiddenByHotkey = false;
   function toggleHide() {
     isHiddenByHotkey = !isHiddenByHotkey;
     updateSiteVisibility();

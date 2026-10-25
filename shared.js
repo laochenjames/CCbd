@@ -199,6 +199,7 @@ const XPET = {
       holidays: { enabled: true, items: XPET.defaultHolidays() }, // 节日/纪念日：当天第一次在线时说一句
       back: { enabled: true, minutes: 90 }, // 同一天内离开超过这么久再回来，说一句「回来啦」
       milestone: true, // 累计陪伴天数里程碑
+      stories: { enabled: true }, // 小本子：解锁提示 + 点击宠物时偶尔说一句碎碎念
       sites: {
         x: true,        // X (Twitter)
         binance: true,  // 币安广场 (Binance Square)
@@ -248,14 +249,14 @@ const XPET = {
     return {
       v: 3,
       sites: {
-        x: bool(st.x, d.sites.x),
-        binance: bool(st.binance, d.sites.binance),
-        okx: bool(st.okx, d.sites.okx),
+        x: bool(st.x, (d.sites && d.sites.x) !== false),
+        binance: bool(st.binance, (d.sites && d.sites.binance) !== false),
+        okx: bool(st.okx, (d.sites && d.sites.okx) !== false),
       },
       holidays: { enabled: bool(hd.enabled, d.holidays.enabled), items: hItems },
       back: { enabled: bool(bk.enabled, d.back.enabled), minutes: int(bk.minutes, 10, 720, d.back.minutes) },
       milestone: bool(raw.milestone, d.milestone),
-      stories: { enabled: bool(stv.enabled, d.stories.enabled) },
+      stories: { enabled: bool(stv.enabled, (d.stories && d.stories.enabled) !== false) },
       greeting: { enabled: bool(gr.enabled, d.greeting.enabled), slots },
       chipMode: ['click', 'always', 'off'].includes(raw.chipMode) ? raw.chipMode : (raw.showChip === false ? 'off' : d.chipMode),
       chipItems: { ...d.chipItems, ...(raw.chipItems || {}) },

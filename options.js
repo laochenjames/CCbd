@@ -293,6 +293,7 @@
     $('s-goalMax').value = settings.goal.maxMinutes;
     $('s-goalGrace').value = settings.goal.graceMinutes;
     $('s-goalBase').value = settings.goal.baseXp || 10;
+    renderGoalSummary();
     const sites = settings.sites || {};
     $('site-x').checked = sites.x !== false;
     $('site-binance').checked = sites.binance !== false;
