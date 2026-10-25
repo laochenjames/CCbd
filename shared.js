@@ -114,6 +114,17 @@ const XPET = {
   ACTIVITIES: [['book', '📖 看书'], ['phone', '📱 玩手机'], ['laptop', '💻 用电脑'], ['none', '不拿东西']],
   PROP_EMOJI: { book: '📖', phone: '📱', laptop: '💻' },
 
+  SITE_NAMES: {
+    x: '𝕏 推特',
+    binance: '🟡 币安广场',
+    okx: '🔵 OK星球',
+  },
+  SITE_ICONS: {
+    x: '𝕏',
+    binance: '🟡',
+    okx: '🔵',
+  },
+
   // 时长与滚动距离的显示（1 CSS 像素按 96dpi 折算，约 0.2646 毫米，是估算值）
   fmtDur(mins) {
     mins = Math.max(0, Math.floor(mins));

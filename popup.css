@@ -229,6 +229,52 @@ body {
   transform: scale(0.98);
 }
 
+/* 今日陪伴统计卡片 (双层统计) */
+.today-card {
+  background: #192734;
+  border: 1px solid #22303c;
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin-bottom: 12px;
+}
+.today-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.today-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8899a6;
+}
+.today-total {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1da1f2;
+}
+.today-sites {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.site-chip {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #22303c;
+  padding: 2px 7px;
+  border-radius: 6px;
+  color: #8899a6;
+  display: inline-flex;
+  align-items: center;
+}
+.site-chip.has-time {
+  border-color: rgba(29, 161, 242, 0.35);
+  background: rgba(29, 161, 242, 0.08);
+  color: #d5dbe1;
+  font-weight: 500;
+}
+
 /* 底部操作 */
 .footer {
   border-top: 1px solid #22303c;

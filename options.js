@@ -530,14 +530,31 @@
     if (calSel) showCalDetail(calSel);
     // 本月合计
     const sum = { post: 0, like: 0, bookmark: 0, repost: 0, follow: 0, scroll: 0, mins: 0, xp: 0, days: 0, inRange: 0 };
+    const siteMins = { x: 0, binance: 0, okx: 0 };
     for (let d = 1; d <= days; d++) {
       const k = dayKey(y, m, d), x = calData.h[k], sx = calData.settled[k], mins = dayMinutes(k);
-      if (x) ['post', 'like', 'bookmark', 'repost', 'follow', 'scroll'].forEach((f) => { sum[f] += x[f] || 0; });
+      if (x) {
+        ['post', 'like', 'bookmark', 'repost', 'follow', 'scroll'].forEach((f) => { sum[f] += x[f] || 0; });
+        if (x.bySite) {
+          ['x', 'binance', 'okx'].forEach((sk) => {
+            if (x.bySite[sk] && x.bySite[sk].seconds) {
+              siteMins[sk] += Math.floor(x.bySite[sk].seconds / 60);
+            }
+          });
+        }
+      }
       if (sx) sum.xp += sx.xp || 0;
       if (mins > 0) { sum.days++; sum.mins += mins; if (dayState(mins) === 'in') sum.inRange++; }
     }
+    const siteSumParts = [];
+    const siteLabels = (XPET && XPET.SITE_NAMES) || { x: '𝕏 推特', binance: '🟡 币安广场', okx: '🔵 OK星球' };
+    ['x', 'binance', 'okx'].forEach((sk) => {
+      if (siteMins[sk] > 0) siteSumParts.push(`${siteLabels[sk]} ${XPET.fmtDur(siteMins[sk])}`);
+    });
+    const siteSumStr = siteSumParts.length ? ` · 分站时长：${siteSumParts.join(' · ')}` : '';
+
     document.getElementById('cal-month').textContent = sum.days
-      ? `本月合计：${sum.days} 天有记录，${sum.inRange} 天在区间内 · 在线 ${XPET.fmtDur(sum.mins)}（日均 ${XPET.fmtDur(sum.mins / sum.days)}）· 发 ${sum.post} · 赞 ${sum.like} · 藏 ${sum.bookmark} · 转 ${sum.repost} · 关注 ${sum.follow} · 滚动约 ${XPET.fmtScroll(sum.scroll)} · 经验 +${sum.xp}`
+      ? `本月合计：${sum.days} 天有记录，${sum.inRange} 天在区间内 · 在线 ${XPET.fmtDur(sum.mins)}（日均 ${XPET.fmtDur(sum.mins / sum.days)}）· 发 ${sum.post} · 赞 ${sum.like} · 藏 ${sum.bookmark} · 转 ${sum.repost} · 关注 ${sum.follow} · 滚动约 ${XPET.fmtScroll(sum.scroll)} · 经验 +${sum.xp}${siteSumStr}`
       : '本月还没有记录';
     const lo = settings.goal.minMinutes, hi = settings.goal.maxMinutes;
     const rng = hi > 0 ? `${lo}–${hi} 分钟` : lo > 0 ? `${lo} 分钟以上` : '不限';
@@ -559,7 +576,34 @@
       if (d.scroll) parts.push(`滚动约 ${XPET.fmtScroll(d.scroll)}`);
     }
     parts.push(s ? `经验 +${s.xp}` : '经验今晚结算');
-    box.textContent = `${k}：` + parts.join('　');
+
+    // 双层统计：分站明细展示
+    const siteLines = [];
+    const bs = d && d.bySite;
+    if (bs) {
+      const siteLabels = (XPET && XPET.SITE_NAMES) || { x: '𝕏 推特', binance: '🟡 币安广场', okx: '🔵 OK星球' };
+      ['x', 'binance', 'okx'].forEach((key) => {
+        const item = bs[key];
+        if (item && ((item.seconds && item.seconds >= 30) || item.post || item.like || item.bookmark || item.repost || item.follow)) {
+          const itemMins = Math.floor((item.seconds || 0) / 60);
+          const iParts = [];
+          if (itemMins > 0) iParts.push(`时长 ${XPET.fmtDur(itemMins)}`);
+          if (item.post) iParts.push(`发 ${item.post}`);
+          if (item.like) iParts.push(`赞 ${item.like}`);
+          if (item.bookmark) iParts.push(`藏 ${item.bookmark}`);
+          if (item.repost) iParts.push(`转 ${item.repost}`);
+          if (item.follow) iParts.push(`关注 ${item.follow}`);
+          siteLines.push(`<b>${siteLabels[key]}</b>: ${iParts.join(' · ')}`);
+        }
+      });
+    }
+
+    if (siteLines.length > 0) {
+      box.innerHTML = `<div><b>${k}</b> 【全网总计】${parts.join('　·　')}</div>` +
+                      `<div style="margin-top:5px; color:#1da1f2; font-size:12px; line-height:1.5;">📍 分站明细：${siteLines.join('　|　')}</div>`;
+    } else {
+      box.textContent = `${k}：` + parts.join('　');
+    }
   }
   document.getElementById('cal-prev').addEventListener('click', () => { calView = calView.m === 0 ? { y: calView.y - 1, m: 11 } : { y: calView.y, m: calView.m - 1 }; renderCalendar(); });
   document.getElementById('cal-next').addEventListener('click', () => { calView = calView.m === 11 ? { y: calView.y + 1, m: 0 } : { y: calView.y, m: calView.m + 1 }; renderCalendar(); });

@@ -115,4 +115,49 @@
     }
     window.close();
   });
+
+  // 7. 渲染今日统计数据（双层统计：总数 + 分站明细）
+  async function renderTodayStats() {
+    const totalEl = document.getElementById('pop-today-total');
+    const sitesEl = document.getElementById('pop-today-sites');
+    if (!totalEl || !sitesEl) return;
+
+    try {
+      const res = await chrome.storage.local.get(XPET.HIST_KEY);
+      const h = res[XPET.HIST_KEY] || {};
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, '0');
+      const todayK = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+      const todayData = h[todayK] || {};
+
+      const totalMins = Math.floor((todayData.seconds || 0) / 60);
+      totalEl.textContent = XPET.fmtDur(totalMins);
+
+      const bs = todayData.bySite || {};
+      const siteConfig = [
+        { key: 'x', name: '𝕏', fullName: '推特' },
+        { key: 'binance', name: '🟡', fullName: '币安广场' },
+        { key: 'okx', name: '🔵', fullName: 'OK星球' },
+      ];
+
+      sitesEl.innerHTML = '';
+      siteConfig.forEach(({ key, name, fullName }) => {
+        const item = bs[key] || {};
+        const mins = Math.floor((item.seconds || 0) / 60);
+        const chip = document.createElement('span');
+        chip.className = `site-chip chip-${key}` + (mins > 0 ? ' has-time' : '');
+        chip.textContent = `${name} ${mins}分`;
+        const details = [];
+        if (item.post) details.push(`发 ${item.post}`);
+        if (item.like) details.push(`赞 ${item.like}`);
+        if (item.bookmark) details.push(`藏 ${item.bookmark}`);
+        chip.title = `${fullName}：${XPET.fmtDur(mins)}` + (details.length ? ` (${details.join(' · ')})` : '');
+        sitesEl.appendChild(chip);
+      });
+    } catch (e) {
+      console.warn('获取今日统计失败', e);
+    }
+  }
+
+  renderTodayStats();
 })();

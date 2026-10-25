@@ -372,6 +372,21 @@
     return false;
   }
 
+  // 获取当前页面所属站点标识 ('x' | 'binance' | 'okx' | 'other')
+  function currentSiteKey() {
+    const host = location.hostname.toLowerCase();
+    if (host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')) {
+      return 'x';
+    }
+    if (host.includes('binance.com')) {
+      return 'binance';
+    }
+    if (host.includes('okx.') || host.includes('ouyi.')) {
+      return 'okx';
+    }
+    return 'other';
+  }
+
   let isHiddenByHotkey = false;
   function updateSiteVisibility() {
     const allowed = checkSiteAllowed(settings);
@@ -618,7 +633,21 @@
   };
   const LABELS = { post: '发', like: '赞', bookmark: '藏', repost: '转', follow: '关注' };
   const OLD_KEY = 'xpetCount'; // 旧版只存"今天"的计数，首次运行时迁移进历史
-  const emptyDay = () => ({ post: 0, like: 0, bookmark: 0, repost: 0, follow: 0, seconds: 0, scroll: 0 });
+  const emptySite = () => ({ post: 0, like: 0, bookmark: 0, repost: 0, follow: 0, seconds: 0, scroll: 0 });
+  const emptyDay = () => ({
+    post: 0,
+    like: 0,
+    bookmark: 0,
+    repost: 0,
+    follow: 0,
+    seconds: 0,
+    scroll: 0,
+    bySite: {
+      x: emptySite(),
+      binance: emptySite(),
+      okx: emptySite(),
+    },
+  });
 
   const todayStr = () => {
     const d = new Date();
@@ -653,7 +682,16 @@
             delete h[old.date].date;
           }
           const d = todayStr();
-          h[d] = { ...emptyDay(), ...(h[d] || {}) };
+          const cur = h[d] || {};
+          h[d] = {
+            ...emptyDay(),
+            ...cur,
+            bySite: {
+              x: { ...emptySite(), ...(cur.bySite && cur.bySite.x) },
+              binance: { ...emptySite(), ...(cur.bySite && cur.bySite.binance) },
+              okx: { ...emptySite(), ...(cur.bySite && cur.bySite.okx) },
+            },
+          };
           mutator(h[d]);
           const keys = Object.keys(h).sort();
           while (keys.length > XPET.KEEP_DAYS) delete h[keys.shift()];
@@ -693,7 +731,15 @@
     if (lastAt[type] && now - lastAt[type] < gap) return;
     lastAt[type] = now;
     setStatus({ lastAction: type, lastActionAt: Date.now() });
-    updateHistory((d) => { d[type] += 1; }).then(() => {
+    const siteKey = currentSiteKey();
+    updateHistory((d) => {
+      d[type] = (d[type] || 0) + 1;
+      if (siteKey !== 'other') {
+        d.bySite = d.bySite || {};
+        d.bySite[siteKey] = d.bySite[siteKey] || emptySite();
+        d.bySite[siteKey][type] = (d.bySite[siteKey][type] || 0) + 1;
+      }
+    }).then(() => {
       restartClass(type === 'post' ? 'xpet-jump' : 'xpet-nudge');
       speak(type);
     });
@@ -794,7 +840,17 @@
     if (s < 1 && p < 1) return;
     pendingSec -= s;
     pendingScroll = 0;
-    updateHistory((d) => { d.seconds += s; d.scroll += p; });
+    const siteKey = currentSiteKey();
+    updateHistory((d) => {
+      d.seconds = (d.seconds || 0) + s;
+      d.scroll = (d.scroll || 0) + p;
+      if (siteKey !== 'other') {
+        d.bySite = d.bySite || {};
+        d.bySite[siteKey] = d.bySite[siteKey] || emptySite();
+        d.bySite[siteKey].seconds = (d.bySite[siteKey].seconds || 0) + s;
+        d.bySite[siteKey].scroll = (d.bySite[siteKey].scroll || 0) + p;
+      }
+    });
   }
 
   let lastTick = Date.now();
@@ -1077,6 +1133,28 @@
     if (counts.repost) did.push(`转发 ${counts.repost} 次`);
     if (counts.follow) did.push(`关注 ${counts.follow} 个`);
     rows.push(['做了', did.length ? did.join('，') : '安安静静地看了看']);
+
+    // 双层统计：展示各平台细分
+    const siteBreakdowns = [];
+    const bs = counts.bySite || {};
+    const siteLabels = (XPET && XPET.SITE_NAMES) || { x: '𝕏 推特', binance: '🟡 币安广场', okx: '🔵 OK星球' };
+    ['x', 'binance', 'okx'].forEach((k) => {
+      const sData = bs[k];
+      if (sData && ((sData.seconds && sData.seconds >= 30) || sData.post || sData.like || sData.bookmark || sData.repost || sData.follow)) {
+        const smins = Math.floor((sData.seconds || 0) / 60);
+        const parts = [];
+        if (smins > 0) parts.push(XPET.fmtDur(smins));
+        if (sData.post) parts.push(`发${sData.post}`);
+        if (sData.like) parts.push(`赞${sData.like}`);
+        if (sData.bookmark) parts.push(`藏${sData.bookmark}`);
+        if (sData.repost) parts.push(`转${sData.repost}`);
+        if (sData.follow) parts.push(`关注${sData.follow}`);
+        siteBreakdowns.push(`${siteLabels[k]}: ${parts.join(' · ')}`);
+      }
+    });
+    if (siteBreakdowns.length > 0) {
+      rows.push(['分站明细', siteBreakdowns.join('　|　')]);
+    }
 
     const next = XPET.ACCESSORIES.find((a) => a.need > xpTotal);
     rows.push(['经验', `今天预计 +${todayXp()}（今晚自动结算）· 累计 ${xpTotal}` + (next ? ` · 下一件装备 ${next.icon}${next.name} 还差 ${next.need - xpTotal}` : '')]);
