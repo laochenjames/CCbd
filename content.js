@@ -52,6 +52,7 @@
 
   const root = document.createElement('div');
   root.id = 'xpet-root';
+  root.style.display = 'none'; // 初始隐藏，等检测当前站点与页面允许后再显示
   root.innerHTML = '<div class="xpet-bubble"></div><div class="xpet-body"></div><div class="xpet-chip"></div>';
   document.body.appendChild(root);
   const bubble = root.querySelector('.xpet-bubble');
@@ -345,10 +346,48 @@
     clearTimeout(chipTimer);
     chipTimer = setTimeout(refreshChip, ms + 50);
   }
+  // ---------- 站点检测与单页应用 (SPA) 路由支持 ----------
+  function checkSiteAllowed(curSettings) {
+    const host = location.hostname.toLowerCase();
+    const path = location.pathname.toLowerCase();
+    const sites = (curSettings && curSettings.sites) || { x: true, binance: true, okx: true };
+
+    if (host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')) {
+      return sites.x !== false;
+    }
+    if (host.includes('binance.com')) {
+      if (sites.binance === false) return false;
+      // 仅在币安广场页面生效（/square, /feed）
+      return path.includes('/square') || path.includes('/feed');
+    }
+    if (host.includes('okx.com')) {
+      if (sites.okx === false) return false;
+      // 仅在OK星球与社区页面生效（/square, /community）
+      return path.includes('/square') || path.includes('/community');
+    }
+    return false;
+  }
+
+  function updateSiteVisibility() {
+    const allowed = checkSiteAllowed(settings);
+    root.style.display = (allowed && !isHiddenByHotkey) ? '' : 'none';
+  }
+
+  // 监听 SPA 路由切换（如在币安或OKX从其他页面进入广场）
+  let lastCheckedHref = location.href;
+  setInterval(() => {
+    if (location.href !== lastCheckedHref) {
+      lastCheckedHref = location.href;
+      updateSiteVisibility();
+    }
+  }, 500);
+  window.addEventListener('popstate', updateSiteVisibility);
+
   function applySettings() {
     tiredBaseline = null; // 提醒间隔改了，重新以当前时长为起点，避免立刻补发提醒
     const op = (settings.appearance && settings.appearance.opacity !== undefined) ? settings.appearance.opacity / 100 : 1;
     root.style.setProperty('--xpet-opacity', String(op));
+    updateSiteVisibility();
     refreshChip();
   }
   async function reloadSettings() {
@@ -539,10 +578,10 @@
   let isHiddenByHotkey = false;
   function toggleHide() {
     isHiddenByHotkey = !isHiddenByHotkey;
-    root.style.visibility = isHiddenByHotkey ? 'hidden' : 'visible';
+    updateSiteVisibility();
     closeMenu();
     closeSummary();
-    if (!isHiddenByHotkey) say('我回来啦～', 1800);
+    if (!isHiddenByHotkey && checkSiteAllowed(settings)) say('我回来啦～', 1800);
   }
 
   document.addEventListener('keydown', (e) => {
@@ -655,25 +694,59 @@
     });
   }
 
-  document.addEventListener('click', (e) => {
-    const t = e.target;
-    if (!t || !t.closest) return;
-    const send = t.closest(SELECTORS.sendButton);
-    if (send) {
-      if (send.disabled || send.getAttribute('aria-disabled') === 'true') return;
-      bump('post');
-      return;
-    }
-    if (t.closest(SELECTORS.like)) {
-      return bump('like');
-    }
-    if (t.closest(SELECTORS.bookmark)) {
-      return bump('bookmark');
-    }
-    if (t.closest(SELECTORS.repostConfirm)) return bump('repost');
-    if (t.closest(SELECTORS.follow)) return bump('follow');
+  // 智能多平台动作识别（兼容 X / Twitter、币安广场、OK星球）
+  function matchAction(target) {
+    if (!target || !target.closest) return null;
+    const btn = target.closest('button, [role="button"], a, input[type="submit"]');
+    if (!btn) return null;
 
-    // 没匹配上，但按钮的 data-testid 看起来像互动按钮：记录下来，方便判断是不是推特改了写法
+    // 1. X / Twitter 专用 data-testid
+    if (btn.matches(SELECTORS.sendButton)) {
+      if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return null;
+      return 'post';
+    }
+    if (btn.matches(SELECTORS.like)) return 'like';
+    if (btn.matches(SELECTORS.bookmark)) return 'bookmark';
+    if (btn.matches(SELECTORS.repostConfirm)) return 'repost';
+    if (btn.matches(SELECTORS.follow)) return 'follow';
+
+    // 2. 币安广场 / OK星球 通用文本与属性特征识别
+    const aria = ((btn.getAttribute('aria-label') || '') + ' ' + (btn.getAttribute('title') || '') + ' ' + (btn.getAttribute('data-testid') || '')).toLowerCase();
+    const text = (btn.innerText || btn.textContent || '').trim();
+
+    // 发帖 / 发送 / Post / Publish
+    if (/^(发布|发帖|发表|发送|post|publish|tweet)$/i.test(text) || /\b(post-button|publish-btn|send-btn)\b/i.test(aria)) {
+      if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return null;
+      return 'post';
+    }
+    // 关注 / Follow
+    if (/^(\+?\s*关注|\+?\s*follow)$/i.test(text) || /\bfollow-btn\b/i.test(aria)) {
+      return 'follow';
+    }
+    // 点赞 / Like
+    if (/^(赞|点赞|like|likes)$/i.test(text) || /\b(like|favorite|thumb-up|heart)\b/i.test(aria)) {
+      return 'like';
+    }
+    // 收藏 / Bookmark / Collect
+    if (/^(收藏|bookmark|favorite)$/i.test(text) || /\b(bookmark|collect)\b/i.test(aria)) {
+      return 'bookmark';
+    }
+    // 转发 / 分享 / Repost / Share
+    if (/^(转发|分享|repost|share)$/i.test(text) || /\b(repost|share|retweet)\b/i.test(aria)) {
+      return 'repost';
+    }
+
+    return null;
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!checkSiteAllowed(settings)) return;
+    const t = e.target;
+    if (!t) return;
+    const act = matchAction(t);
+    if (act) return bump(act);
+
+    // 没匹配上，但按钮的 data-testid 看起来像互动按钮：记录下来
     let node = t;
     for (let i = 0; i < 6 && node && node.getAttribute; i++, node = node.parentElement) {
       const id = node.getAttribute('data-testid');
@@ -686,21 +759,23 @@
   }, true);
 
   document.addEventListener('keydown', (e) => {
+    if (!checkSiteAllowed(settings)) return;
     if (!(e.ctrlKey || e.metaKey) || e.key !== 'Enter') return;
-    const box = e.target.closest && e.target.closest(SELECTORS.composerBox);
+    const box = e.target.closest && e.target.closest(SELECTORS.composerBox + ', textarea, [contenteditable="true"]');
     if (!box || !box.textContent.trim()) return;
     bump('post');
   }, true);
 
   // ---------- 在线时长与滚动距离 ----------
-  // 只在以下条件同时满足时计时：页面可见、窗口有焦点、最近 60 秒内有操作
+  // 只在以下条件同时满足时计时：页面属于允许站点、页面可见、窗口有焦点、最近 60 秒内有操作
   let lastActive = Date.now();
   ['mousemove', 'keydown', 'click', 'wheel', 'touchstart'].forEach((ev) =>
-    window.addEventListener(ev, () => { lastActive = Date.now(); }, { passive: true, capture: true })
+    window.addEventListener(ev, () => { if (checkSiteAllowed(settings)) lastActive = Date.now(); }, { passive: true, capture: true })
   );
 
   let lastY = window.scrollY;
   window.addEventListener('scroll', () => {
+    if (!checkSiteAllowed(settings)) return;
     const y = window.scrollY;
     const d = Math.abs(y - lastY);
     lastY = y;

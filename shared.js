@@ -199,7 +199,11 @@ const XPET = {
       holidays: { enabled: true, items: XPET.defaultHolidays() }, // 节日/纪念日：当天第一次在线时说一句
       back: { enabled: true, minutes: 90 }, // 同一天内离开超过这么久再回来，说一句「回来啦」
       milestone: true, // 累计陪伴天数里程碑
-      stories: { enabled: true }, // 小本子：解锁提示 + 点击宠物时偶尔说一句碎碎念
+      sites: {
+        x: true,        // X (Twitter)
+        binance: true,  // 币安广场 (Binance Square)
+        okx: true,      // OK星球 / 广场 (OKX Planet & Square)
+      },
       appearance: {
         opacity: 100, // 宠物不透明度（30% ~ 100%），鼠标悬停自动恢复 100%
         bubbleTime: 2500, // 台词停留时间（毫秒，1000 ~ 8000）
@@ -216,7 +220,7 @@ const XPET = {
       v = Math.floor(Number(v));
       return Number.isFinite(v) && v >= min && v <= max ? v : def;
     };
-    const rem = raw.reminders || {}, gl = raw.goal || {}, ap = raw.appearance || {};
+    const rem = raw.reminders || {}, gl = raw.goal || {}, ap = raw.appearance || {}, st = raw.sites || {};
     const gr = raw.greeting && typeof raw.greeting === 'object' ? raw.greeting : {};
     let slots = Array.isArray(gr.slots) ? gr.slots : d.greeting.slots;
     slots = slots.slice(0, 8).map((x, i) => ({
@@ -243,6 +247,11 @@ const XPET = {
     const stv = raw.stories && typeof raw.stories === 'object' ? raw.stories : {};
     return {
       v: 3,
+      sites: {
+        x: bool(st.x, d.sites.x),
+        binance: bool(st.binance, d.sites.binance),
+        okx: bool(st.okx, d.sites.okx),
+      },
       holidays: { enabled: bool(hd.enabled, d.holidays.enabled), items: hItems },
       back: { enabled: bool(bk.enabled, d.back.enabled), minutes: int(bk.minutes, 10, 720, d.back.minutes) },
       milestone: bool(raw.milestone, d.milestone),

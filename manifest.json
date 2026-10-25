@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "X 桌宠",
   "version": "0.11.0",
-  "description": "一只陪你逛推特的卡通小伙伴，可自定义角色和台词。",
+  "description": "一只陪你逛推特、币安广场、OK星球的卡通小伙伴，可自定义角色和台词。",
   "permissions": [
     "storage",
     "unlimitedStorage"
@@ -18,7 +18,12 @@
     {
       "matches": [
         "https://x.com/*",
-        "https://twitter.com/*"
+        "https://twitter.com/*",
+        "https://*.twitter.com/*",
+        "https://*.binance.com/*",
+        "https://binance.com/*",
+        "https://*.okx.com/*",
+        "https://okx.com/*"
       ],
       "js": [
         "shared.js",
@@ -39,7 +44,12 @@
       ],
       "matches": [
         "https://x.com/*",
-        "https://twitter.com/*"
+        "https://twitter.com/*",
+        "https://*.twitter.com/*",
+        "https://*.binance.com/*",
+        "https://binance.com/*",
+        "https://*.okx.com/*",
+        "https://okx.com/*"
       ]
     }
   ]

@@ -58,6 +58,15 @@
       <h2>显示与提醒</h2>
       <p class="hint">点开分组查看；不需要的功能可以在这里关掉，修改会立刻生效。</p>
 
+      <details class="grp" open><summary>生效站点（推特 / 币安广场 / OK星球）</summary>
+        <p class="hint">选择桌宠在哪些平台出现。桌宠<b>仅在类似推特的社交广场 / 星球页面</b>生效，绝不会在交易所行情、交易、盯盘等页面打扰你。</p>
+        <div class="sub">
+          <label class="row" style="margin-bottom:6px;"><input type="checkbox" id="site-x"> <b>X / Twitter (推特)</b> <span class="hint">（支持主页 Feed、发推、点赞、关注等）</span></label>
+          <label class="row" style="margin-bottom:6px;"><input type="checkbox" id="site-binance"> <b>币安广场 (Binance Square)</b> <span class="hint">（仅在 <code>binance.com/*/square*</code> 等广场社区页面展示）</span></label>
+          <label class="row" style="margin-bottom:6px;"><input type="checkbox" id="site-okx"> <b>OK星球 / 广场 (OKX Planet & Square)</b> <span class="hint">（仅在 <code>okx.com/*/square*</code>、<code>okx.com/*/community*</code> 等社区页面展示）</span></label>
+        </div>
+      </details>
+
       <details class="grp" open><summary>外观与交互偏好</summary>
       <label class="row">宠物不透明度：
         <input type="range" id="s-opacity" min="30" max="100" step="5" style="vertical-align:middle; width:140px;">

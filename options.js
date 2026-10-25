@@ -293,7 +293,10 @@
     $('s-goalMax').value = settings.goal.maxMinutes;
     $('s-goalGrace').value = settings.goal.graceMinutes;
     $('s-goalBase').value = settings.goal.baseXp || 10;
-    renderGoalSummary();
+    const sites = settings.sites || {};
+    $('site-x').checked = sites.x !== false;
+    $('site-binance').checked = sites.binance !== false;
+    $('site-okx').checked = sites.okx !== false;
     const ap = settings.appearance || {};
     $('s-opacity').value = ap.opacity !== undefined ? ap.opacity : 100;
     $('s-opacityVal').textContent = (ap.opacity !== undefined ? ap.opacity : 100) + '%';
@@ -321,6 +324,9 @@
     saveSettingsNow();
   });
 
+  bindCheck('site-x', (v) => { settings.sites = settings.sites || {}; settings.sites.x = v; });
+  bindCheck('site-binance', (v) => { settings.sites = settings.sites || {}; settings.sites.binance = v; });
+  bindCheck('site-okx', (v) => { settings.sites = settings.sites || {}; settings.sites.okx = v; });
   $('s-chipMode').addEventListener('change', (e) => { settings.chipMode = e.target.value; saveSettingsNow(); });
   itemBoxes.forEach((b) => b.addEventListener('change', () => { settings.chipItems[b.dataset.item] = b.checked; saveSettingsNow(); }));
   $('s-opacity').addEventListener('input', (e) => {
