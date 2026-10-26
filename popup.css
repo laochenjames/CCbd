@@ -295,3 +295,10 @@ body {
   color: #1da1f2;
   background: rgba(29, 161, 242, 0.08);
 }
+.today-acts {
+  margin: 6px 0 8px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #8899a6;
+  word-spacing: 2px;
+}

@@ -132,6 +132,11 @@
 
       const totalMins = Math.floor((todayData.seconds || 0) / 60);
       totalEl.textContent = XPET.fmtDur(totalMins);
+      const actsEl = document.getElementById('pop-today-acts');
+      if (actsEl) {
+        const L = [['发文/回复', 'post'], ['点赞', 'like'], ['收藏', 'bookmark'], ['转发/引用', 'repost'], ['关注', 'follow']];
+        actsEl.textContent = L.map(([t, f]) => `${t} ${todayData[f] || 0}`).join('　');
+      }
 
       const bs = todayData.bySite || {};
       const siteConfig = [
@@ -151,6 +156,8 @@
         if (item.post) details.push(`发 ${item.post}`);
         if (item.like) details.push(`赞 ${item.like}`);
         if (item.bookmark) details.push(`藏 ${item.bookmark}`);
+        if (item.repost) details.push(`转 ${item.repost}`);
+        if (item.follow) details.push(`关注 ${item.follow}`);
         chip.title = `${fullName}：${XPET.fmtDur(mins)}` + (details.length ? ` (${details.join(' · ')})` : '');
         sitesEl.appendChild(chip);
       });
@@ -160,4 +167,5 @@
   }
 
   renderTodayStats();
+  try { const v = document.getElementById('pop-ver'); if (v) v.textContent = 'v' + chrome.runtime.getManifest().version; } catch (_) {}
 })();

@@ -277,6 +277,8 @@
       if (changes[XPET.KEYS.chars] || changes[XPET.KEYS.active]) reloadChars();
       if (Object.keys(changes).some((k) => k.startsWith(XPET.SPRITE_PREFIX))) { spriteCache = {}; spriteState = null; applySprite(); }
       if (changes[XPET.SETTINGS_KEY]) reloadSettings();
+      // 其他标签页写入了今天的统计：同步到本页，否则三个站分开开着时，切回来看到的是旧数字（统计条、今日小结、上限提醒都用它）
+      if (changes[XPET.HIST_KEY]) syncCountsFrom(changes[XPET.HIST_KEY].newValue);
       if (changes[XPET.XP_KEY]) {
         xpTotal = (changes[XPET.XP_KEY].newValue && changes[XPET.XP_KEY].newValue.total) || 0;
         xpDays = (changes[XPET.XP_KEY].newValue && changes[XPET.XP_KEY].newValue.daysTotal) || 0;
@@ -388,16 +390,19 @@
   }
 
   let isHiddenByHotkey = false;
+  let allowedNow = true; // 当前页面是否属于生效页面；mousemove/scroll 这类高频事件只读这个缓存，不再每次重新拼字符串判断
   function updateSiteVisibility() {
-    const allowed = checkSiteAllowed(settings);
-    root.style.display = (allowed && !isHiddenByHotkey) ? '' : 'none';
+    allowedNow = checkSiteAllowed(settings);
+    root.style.display = (allowedNow && !isHiddenByHotkey) ? '' : 'none';
   }
 
   // 监听 SPA 路由切换（如在币安或OKX从其他页面进入广场）
-  let lastCheckedHref = location.href;
+  // OKX 的判断还用到页面标题，所以标题变化也要重新判断
+  let lastCheckedSig = location.href + '|' + document.title;
   setInterval(() => {
-    if (location.href !== lastCheckedHref) {
-      lastCheckedHref = location.href;
+    const sig = location.href + '|' + document.title;
+    if (sig !== lastCheckedSig) {
+      lastCheckedSig = sig;
       updateSiteVisibility();
     }
   }, 500);
@@ -707,14 +712,32 @@
     });
   }
 
-  // 运行状态：写入存储，设置页的"诊断"区域会读取，用来判断脚本有没有在推特页面上正常运行
-  function setStatus(patch) {
-    try {
-      chrome.storage.local.get(XPET.STATUS_KEY, (r) => {
-        chrome.storage.local.set({ [XPET.STATUS_KEY]: { ...((r && r[XPET.STATUS_KEY]) || {}), ...patch } });
-      });
-    } catch (e) {}
+  function syncCountsFrom(h) {
+    const t = h && h[todayStr()];
+    if (!t || typeof t !== 'object') return;
+    const bs = t.bySite || {};
+    hist = h;
+    counts = { ...emptyDay(), ...t, bySite: { x: { ...emptySite(), ...bs.x }, binance: { ...emptySite(), ...bs.binance }, okx: { ...emptySite(), ...bs.okx } } };
+    refreshChip();
   }
+
+  // 运行状态：写入存储，设置页的"诊断"区域会读取，用来判断脚本有没有在推特页面上正常运行
+  // 对「运行状态」的读改写排成一队。之前探针和 setStatus 同时读改写同一个键，后写的会把先写的覆盖掉，
+  // 点赞那条探针记录就是这样丢的
+  let statusChain = Promise.resolve();
+  function updateStatus(mutator) {
+    statusChain = statusChain.then(() => new Promise((resolve) => {
+      try {
+        chrome.storage.local.get(XPET.STATUS_KEY, (r) => {
+          const st = (r && r[XPET.STATUS_KEY]) || {};
+          const out = mutator(st) || st;
+          chrome.storage.local.set({ [XPET.STATUS_KEY]: out }, () => resolve());
+        });
+      } catch (e) { resolve(); }
+    })).catch(() => {});
+    return statusChain;
+  }
+  function setStatus(patch) { updateStatus((st) => ({ ...st, ...patch })); }
   try {
     setStatus({ version: chrome.runtime.getManifest().version, loadedAt: Date.now(), page: location.pathname });
   } catch (e) {}
@@ -745,9 +768,116 @@
     });
   }
 
+  // ---------- 币安 / OKX 专用规则（来自探针采集到的真实 DOM）----------
+  // 这两站的互动元素很多不是 button，所以必须放在通用识别之前
+  const SITE_RULES = {
+    binance: [
+      // 点赞/取消点赞是同一个元素（thumb-up-button，里面的文字就是点赞数），靠数字变化区分
+      { act: 'like', sel: '.thumb-up-button', toggle: true },
+      // 收藏：详情页有专用 class；列表页卡片底部最右那组图标里，第一个是收藏、第二个是分享（分享不计）。
+      // 收藏/取消收藏的图形不变、靠颜色区分，而悬停也会变黄，所以无法区分。只记正向行为的做法：
+      // 同一条帖子在页面不刷新期间只计第一次；书签页里点收藏图标是取消收藏，不计（见 onceAllowed）
+      { act: 'bookmark', sel: '.detail-bookmark-button', once: true },
+      { act: 'bookmark', sel: '.footer-function-grid > .gap-3 > :first-child', once: true },
+      // 关注：已关注的按钮带 isFollowing，点它是取消关注，不计
+      { act: 'follow', sel: '.feed-follow-button:not(.isFollowing)' },
+      // 引用入口：只做标记，转发在引用「发出去」时才计（见 quoteContext）
+      { arm: true, sel: '.quote-icon' },
+    ],
+    okx: [
+      { act: 'like', sel: '[data-testid="feed-like-button"]', toggle: true },
+      { arm: true, sel: '[data-testid="quote-btn"]' },
+    ],
+  };
+  // 引用和转发算在一起：引用编辑器里点「发文」，计一次转发，不计发文
+  // OKX 的引用编辑器没有 quote-mode 这类状态 class，只能靠「点过转发入口」的标记来判断，三道限制防止误计：
+  // ① 只有「弹窗里的发文」才算转发（首页输入框不在弹窗里，发的是普通帖）；② 点遮罩或关闭图标（取消引用）就撤销标记；
+  // ③ 标记 30 分钟后失效。已知局限：用 Esc 取消引用后，30 分钟内在另一个弹窗里发的普通帖仍会被误计为转发
+  let quoteArmedAt = 0;
+  const QUOTE_ARM_MS = 30 * 60 * 1000;
+  function quoteContext(el) {
+    if (el && el.closest && el.closest('.quote-mode')) return true; // 币安：引用编辑器带 quote-mode
+    if (currentSiteKey() === 'okx' && quoteArmedAt && Date.now() - quoteArmedAt < QUOTE_ARM_MS && el && el.closest && el.closest('[role="dialog"]')) { quoteArmedAt = 0; return true; }
+    return false;
+  }
+  const SKIP = 'skip'; // 专用规则命中了，但这次点击不该计数（后面的通用规则也不要再去匹配）
+  const onceSeen = new Set(); // 「每条帖子只计一次」的动作（收藏）：已经计过的 动作:帖子id
+  // 帖子 id：详情页取网址里的数字；列表页取卡片里指向帖子的链接。找不到就返回空字符串
+  function postKeyOf(el) {
+    const m = location.pathname.match(/\/post\/(\d+)/);
+    if (m) return m[1];
+    const card = el.closest('.feed-buzz-card-base-view') || (el.closest('.card__ft') || {}).parentElement;
+    const a = card && card.querySelector && card.querySelector('a[href*="/post/"]');
+    const mm = a && (a.getAttribute('href') || '').match(/\/post\/(\d+)/);
+    return mm ? mm[1] : '';
+  }
+  function onceAllowed(act, el) {
+    // 书签页里点收藏图标是取消收藏。网址里含 bookmark/collect/favorite 就认为是这类页面（路径未经你的页面验证，探针记录里的 path 可以核对）
+    if (/bookmark|collect|favorite/i.test(location.pathname)) return false;
+    const id = postKeyOf(el);
+    if (!id) return true; // 找不到帖子 id，没法去重，按每次点击计
+    const key = act + ':' + id;
+    if (onceSeen.has(key)) return false;
+    onceSeen.add(key);
+    return true;
+  }
+  const PUBLISH_TEXT = /^(发文|发布|发帖|发表|发送|post|publish)$/i;
+  let lastHit = null; // 最近一次专用规则命中的元素与是否为切换型按钮
+
+  function matchSiteRule(target) {
+    const site = currentSiteKey();
+    if (site !== 'binance' && site !== 'okx') return null;
+    for (const r of SITE_RULES[site] || []) {
+      const el = target.closest(r.sel);
+      if (el) {
+        if (r.arm) { quoteArmedAt = Date.now(); return null; }
+        if (r.once && !onceAllowed(r.act, el)) return SKIP;
+        lastHit = { el, toggle: !!r.toggle };
+        return r.act;
+      }
+    }
+    // 发文：只认编辑器/弹窗里的提交按钮，排除仅用来打开编辑器的入口；按钮禁用（内容为空）时不计
+    const b = target.closest('button, [role="button"]');
+    if (b && PUBLISH_TEXT.test((b.innerText || b.textContent || '').trim())) {
+      const cls = typeof b.className === 'string' ? b.className : '';
+      // 从父级往上找（不包含按钮自己）：必须有一个编辑器/弹窗类的祖先，且其中真的有输入框，才算提交按钮
+      let inEditor = /publishBtn|publish-btn/i.test(cls);
+      for (let a = b.parentElement, i = 0; !inEditor && a && i < 12; a = a.parentElement, i++) {
+        if (a.matches('[role="dialog"], [class*="editor"], [class*="composer"]') && a.querySelector('[role="textbox"], .ProseMirror, textarea')) inEditor = true;
+      }
+      // 币安用 class 里的 inactive 表示不可点（按钮点击后的快照里出现过 "inactive css-xxx"），不是 disabled 属性
+      const disabled = b.disabled || b.getAttribute('aria-disabled') === 'true' || /(^|\s)(inactive|disabled)(\s|$)/i.test(cls);
+      if (inEditor && !disabled) { lastHit = null; return quoteContext(b) ? 'repost' : 'post'; }
+    }
+    return null;
+  }
+
+  // 把 "1.2k" / "3万" / "" 解析成数字；解析不了返回 NaN
+  function parseCount(s) {
+    s = String(s || '').trim().replace(/,/g, '').toLowerCase();
+    if (!s) return 0;
+    const m = s.match(/^(\d+(?:\.\d+)?)([kmw万]?)$/);
+    if (!m) return NaN;
+    const mul = { '': 1, k: 1e3, m: 1e6, w: 1e4, '万': 1e4 }[m[2]];
+    return Math.round(parseFloat(m[1]) * mul);
+  }
+  // 切换型按钮（点赞/取消点赞）：点击后 600ms 再读一次数字，数字变小说明是取消，不计数；无法判断时按点赞计
+  function bumpToggle(type, el) {
+    const before = parseCount(el.textContent);
+    setTimeout(() => {
+      const after = document.contains(el) ? parseCount(el.textContent) : NaN;
+      if (Number.isFinite(before) && Number.isFinite(after) && after < before) return;
+      bump(type);
+    }, 600);
+  }
+
   // 智能多平台动作识别（兼容 X / Twitter、币安广场、OK星球）
   function matchAction(target) {
     if (!target || !target.closest) return null;
+    lastHit = null;
+    const siteAct = matchSiteRule(target);
+    if (siteAct === SKIP) return null;
+    if (siteAct) return siteAct;
     const btn = target.closest('button, [role="button"], a, input[type="submit"]');
     if (!btn) return null;
 
@@ -760,10 +890,14 @@
     if (btn.matches(SELECTORS.bookmark)) return 'bookmark';
     if (btn.matches(SELECTORS.repostConfirm)) return 'repost';
     if (btn.matches(SELECTORS.follow)) return 'follow';
+    // X 已有完整的 data-testid 规则；下面的文字/aria 通用规则只给其他站点用，
+    // 否则侧栏 "Post"、"Share post"、个人页 "Likes" 标签都会被误计
+    if (currentSiteKey() === 'x') return null;
 
     // 2. 币安广场 / OK星球 通用文本与属性特征识别
     const aria = ((btn.getAttribute('aria-label') || '') + ' ' + (btn.getAttribute('title') || '') + ' ' + (btn.getAttribute('data-testid') || '')).toLowerCase();
-    const text = (btn.innerText || btn.textContent || '').trim();
+    const rawText = btn.textContent || ''; // 不用 innerText（会强制排版）；整张卡片大小的链接不取文字
+    const text = rawText.length > 40 ? '' : rawText.trim();
 
     // 发帖 / 发送 / Post / Publish
     if (/^(发布|发帖|发表|发送|post|publish|tweet)$/i.test(text) || /\b(post-button|publish-btn|send-btn)\b/i.test(aria)) {
@@ -771,7 +905,9 @@
       return 'post';
     }
     // 关注 / Follow
-    if (/^(\+?\s*关注|\+?\s*follow)$/i.test(text) || /\bfollow-btn\b/i.test(aria)) {
+    // 顶部「关注」标签页（推荐/关注/快讯…）不是关注动作，排除
+    const isTab = btn.getAttribute('role') === 'tab' || !!btn.closest('[role="tablist"], nav');
+    if (!isTab && (/^(\+?\s*关注|\+?\s*follow)$/i.test(text) || /\bfollow-btn\b/i.test(aria))) {
       return 'follow';
     }
     // 点赞 / Like
@@ -790,12 +926,75 @@
     return null;
   }
 
+  // 探针：仅在币安 / OKX 页面记录点击元素的信息（含是否被识别），供设置页「诊断」查看，用来校准选择器。
+  // 校准完成后可以整段删除（连同调用它的那一行），不影响统计功能
+  const PROBE_ENABLED = false; // 校准期开着；确认稳定后改成 false 即可关闭探针（不再写存储）
+  function probeClick(t, act) {
+    if (!PROBE_ENABLED) return;
+    const site = currentSiteKey();
+    if (site !== 'binance' && site !== 'okx') return;
+    if (!t.closest || t.closest('[role="textbox"], .ProseMirror, #xpet-root, #xpet-menu, #xpet-summary')) return; // 编辑框里打字、点宠物自己的界面都不记录
+    try {
+      const cut = (s, n) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n);
+      // 不用 innerText（会强制排版，对 body 这种大节点很贵）；只对子元素不多的节点取文字
+      const smallText = (n) => (n.childElementCount < 40 ? cut(n.textContent, 24) : '');
+      const clsOf = (n) => (typeof n.className === 'string' ? n.className : (n.className && n.className.baseVal) || '');
+      const pathSig = (n) => { const p = n.querySelector && n.querySelector('path'); const d = (p && p.getAttribute('d')) || ''; return d ? d.length + ':' + d.slice(0, 10) : ''; };
+      const nodes = [];
+      const chain = [];
+      let node = t;
+      for (let i = 0; i < 7 && node && node.nodeType === 1; i++, node = node.parentElement) {
+        nodes.push(node);
+        chain.push({
+          tag: node.tagName.toLowerCase(),
+          id: cut(node.id, 40),
+          cls: cut(clsOf(node), 80),
+          role: node.getAttribute('role') || '',
+          aria: cut(node.getAttribute('aria-label'), 40),
+          title: cut(node.getAttribute('title'), 40),
+          tid: node.getAttribute('data-testid') || node.getAttribute('data-e2e') || node.getAttribute('data-bn-type') || '',
+          pressed: node.getAttribute('aria-pressed') || '',
+          pos: node.parentElement ? Array.prototype.indexOf.call(node.parentElement.children, node) + '/' + node.parentElement.children.length : '', // 在同级里的位置，用来区分并排的图标
+          text: smallText(node),
+        });
+      }
+      const at = Date.now();
+      updateStatus((st) => {
+        const all = Array.isArray(st.probe) ? st.probe : [];
+        // 每个站点各留最近 12 条，避免一个站点的记录把另一个站点的挤掉
+        const list = all.filter((p) => p.site !== site).concat(all.filter((p) => p.site === site).slice(-11));
+        list.push({ at, site, path: location.pathname.slice(0, 60), matched: act || '', chain });
+        return { ...st, probe: list };
+      });
+      // 600ms 后再看一次最内 4 层的 class、文字和图标路径：用来判断点赞/收藏之类的按钮点完后状态有没有变、怎么变
+      setTimeout(() => {
+        const after = nodes.slice(0, 4).map((n) => cut(clsOf(n), 60) + '|' + smallText(n) + '|' + pathSig(n));
+        updateStatus((st) => {
+          const list = Array.isArray(st.probe) ? st.probe : [];
+          const hit = list.find((p) => p.at === at && p.site === site);
+          if (hit) hit.after = after;
+          return { ...st, probe: list };
+        });
+      }, 600);
+    } catch (e) {}
+  }
+
   document.addEventListener('click', (e) => {
-    if (!checkSiteAllowed(settings)) return;
+    if (!allowedNow) return;
     const t = e.target;
-    if (!t) return;
+    if (!t || (t.closest && t.closest('#xpet-root, #xpet-menu, #xpet-summary'))) return; // 点宠物自己的界面不参与统计
+    if (quoteArmedAt && currentSiteKey() === 'okx' && t.closest) { // 取消引用（点遮罩或关闭图标）就撤销标记
+      const cb = t.closest('button');
+      if (t.closest('.okui-dialog-mask') || t.closest('.okds-close') || (cb && cb.querySelector('.okds-close'))) quoteArmedAt = 0;
+    }
     const act = matchAction(t);
-    if (act) return bump(act);
+    probeClick(t, act);
+    if (act) {
+      const hit = lastHit;
+      lastHit = null;
+      if (hit && hit.toggle) return bumpToggle(act, hit.el);
+      return bump(act);
+    }
 
     // 没匹配上，但按钮的 data-testid 看起来像互动按钮：记录下来
     let node = t;
@@ -810,29 +1009,44 @@
   }, true);
 
   document.addEventListener('keydown', (e) => {
-    if (!checkSiteAllowed(settings)) return;
+    if (!allowedNow) return;
     if (!(e.ctrlKey || e.metaKey) || e.key !== 'Enter') return;
     const box = e.target.closest && e.target.closest(SELECTORS.composerBox + ', textarea, [contenteditable="true"]');
     if (!box || !box.textContent.trim()) return;
-    bump('post');
+    bump(quoteContext(e.target) ? 'repost' : 'post');
   }, true);
 
   // ---------- 在线时长与滚动距离 ----------
   // 只在以下条件同时满足时计时：页面属于允许站点、页面可见、窗口有焦点、最近 60 秒内有操作
   let lastActive = Date.now();
   ['mousemove', 'keydown', 'click', 'wheel', 'touchstart'].forEach((ev) =>
-    window.addEventListener(ev, () => { if (checkSiteAllowed(settings)) lastActive = Date.now(); }, { passive: true, capture: true })
+    window.addEventListener(ev, () => { if (allowedNow) lastActive = Date.now(); }, { passive: true, capture: true })
   );
 
+  // 滚动距离：页面本身的滚动 + 内层大滚动容器（高度 ≥ 200px，如信息流面板）的滚动。
+  // scroll 事件不冒泡，所以用 capture 才能收到内层容器的；小控件（下拉框、输入框）的滚动忽略。
+  // 每个容器第一次出现时只记录起点不计距离，所以会少算很小一段；这是尽力而为的估算
   let lastY = window.scrollY;
-  window.addEventListener('scroll', () => {
-    if (!checkSiteAllowed(settings)) return;
-    const y = window.scrollY;
-    const d = Math.abs(y - lastY);
-    lastY = y;
+  const innerScroll = new WeakMap(); // 容器 -> { top, big }
+  window.addEventListener('scroll', (e) => {
+    if (!allowedNow) return;
+    const tgt = e.target;
+    let d = 0;
+    if (!tgt || tgt === document || tgt === document.documentElement || tgt === document.body) {
+      const y = window.scrollY;
+      d = Math.abs(y - lastY);
+      lastY = y;
+    } else if (tgt.nodeType === 1) {
+      let st = innerScroll.get(tgt);
+      if (!st) { innerScroll.set(tgt, { top: tgt.scrollTop, big: tgt.clientHeight >= 200 }); return; }
+      if (!st.big) return;
+      const y = tgt.scrollTop;
+      d = Math.abs(y - st.top);
+      st.top = y;
+    } else return;
     // 页面切换导致的瞬间大跳转不算滚动
     if (d < 4000 && document.visibilityState === 'visible') pendingScroll += d;
-  }, { passive: true });
+  }, { passive: true, capture: true });
 
   function flush() {
     const s = Math.floor(pendingSec);
@@ -1123,56 +1337,76 @@
     const over = hi > 0 && mins > hi;
     const under = lo > 0 && mins < lo;
 
-    const rows = [];
-    rows.push(['在线', XPET.fmtDur(mins) + (hi > 0 ? `（你设的范围：${lo}–${hi} 分钟）` : lo > 0 ? `（你设的下限：${lo} 分钟）` : '')]);
-    rows.push(['状态', over ? `比上限多了 ${mins - hi} 分钟，没关系` : under ? `还没到下限 ${lo} 分钟` : '在你设的范围内']);
-    const did = [];
-    if (counts.post) did.push(`发推/回复 ${counts.post} 条`);
-    if (counts.bookmark) did.push(`收藏 ${counts.bookmark} 条`);
-    if (counts.like) did.push(`点赞 ${counts.like} 次`);
-    if (counts.repost) did.push(`转发 ${counts.repost} 次`);
-    if (counts.follow) did.push(`关注 ${counts.follow} 个`);
-    rows.push(['做了', did.length ? did.join('，') : '安安静静地看了看']);
+    // 所有文字都用 textContent，不拼 HTML
+    const mk = (tag, cls, text) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined && text !== null) e.textContent = text;
+      return e;
+    };
 
-    // 双层统计：展示各平台细分
-    const siteBreakdowns = [];
-    const bs = counts.bySite || {};
-    const siteLabels = (XPET && XPET.SITE_NAMES) || { x: '𝕏 推特', binance: '🟡 币安广场', okx: '🔵 OK星球' };
-    ['x', 'binance', 'okx'].forEach((k) => {
-      const sData = bs[k];
-      if (sData && ((sData.seconds && sData.seconds >= 30) || sData.post || sData.like || sData.bookmark || sData.repost || sData.follow)) {
-        const smins = Math.floor((sData.seconds || 0) / 60);
-        const parts = [];
-        if (smins > 0) parts.push(XPET.fmtDur(smins));
-        if (sData.post) parts.push(`发${sData.post}`);
-        if (sData.like) parts.push(`赞${sData.like}`);
-        if (sData.bookmark) parts.push(`藏${sData.bookmark}`);
-        if (sData.repost) parts.push(`转${sData.repost}`);
-        if (sData.follow) parts.push(`关注${sData.follow}`);
-        siteBreakdowns.push(`${siteLabels[k]}: ${parts.join(' · ')}`);
-      }
+    summaryEl = mk('div');
+    summaryEl.id = 'xpet-summary';
+
+    // ① 头部：标题 + 今日在线总时长（整张卡片里最大的数字）
+    const head = mk('div', 'xpet-sum-head');
+    head.appendChild(mk('div', 'xpet-sum-title', '今日小结'));
+    head.appendChild(mk('div', 'xpet-sum-time', XPET.fmtDur(mins)));
+    summaryEl.appendChild(head);
+
+    // ② 状态：圆点颜色 + 一句话，你设的区间放在下面一行小字
+    const state = mk('div', 'xpet-sum-state ' + (over ? 'over' : under ? 'under' : 'in'));
+    state.appendChild(mk('span', 'xpet-sum-dot'));
+    state.appendChild(mk('span', '', over ? `比上限多了 ${mins - hi} 分钟，没关系` : under ? `还没到下限 ${lo} 分钟` : '在你设的范围内'));
+    summaryEl.appendChild(state);
+    const rng = hi > 0 ? `${lo}–${hi} 分钟` : lo > 0 ? `${lo} 分钟以上` : '';
+    if (rng) summaryEl.appendChild(mk('div', 'xpet-sum-sub', `你设的范围：${rng}`));
+
+    // ③ 五项互动：数字在上、名称在下；为 0 的项变淡
+    const grid = mk('div', 'xpet-sum-grid');
+    [['post', '发文'], ['like', '点赞'], ['bookmark', '收藏'], ['repost', '转发'], ['follow', '关注']].forEach(([k, label]) => {
+      const n = counts[k] || 0;
+      const cell = mk('div', 'xpet-sum-cell' + (n ? '' : ' zero'));
+      cell.appendChild(mk('div', 'xpet-sum-num', String(n)));
+      cell.appendChild(mk('div', 'xpet-sum-lab', label));
+      grid.appendChild(cell);
     });
-    if (siteBreakdowns.length > 0) {
-      rows.push(['分站明细', siteBreakdowns.join('　|　')]);
+    summaryEl.appendChild(grid);
+
+    // ④ 分站明细：每站一块，第一行站名 + 时长，第二行互动数（没有就不显示这一行）
+    const bs = counts.bySite || {};
+    const SITE_SHORT = { x: '推特', binance: '币安广场', okx: 'OK星球' };
+    const siteIcons = (XPET && XPET.SITE_ICONS) || { x: '𝕏', binance: '🟡', okx: '🔵' };
+    const blocks = [];
+    ['x', 'binance', 'okx'].forEach((k) => {
+      const s = bs[k];
+      if (!(s && ((s.seconds && s.seconds >= 30) || s.post || s.like || s.bookmark || s.repost || s.follow))) return;
+      const smins = Math.floor((s.seconds || 0) / 60);
+      const acts = [];
+      [['post', '发文'], ['like', '赞'], ['bookmark', '藏'], ['repost', '转'], ['follow', '关注']].forEach(([f, l]) => { if (s[f]) acts.push(`${l} ${s[f]}`); });
+      const block = mk('div', 'xpet-sum-site');
+      const top = mk('div', 'xpet-sum-site-top');
+      top.appendChild(mk('span', 'xpet-sum-site-name', `${siteIcons[k]} ${SITE_SHORT[k]}`));
+      top.appendChild(mk('span', 'xpet-sum-site-time', smins > 0 ? XPET.fmtDur(smins) : (s.seconds ? '<1分' : '0分')));
+      block.appendChild(top);
+      if (acts.length) block.appendChild(mk('div', 'xpet-sum-site-acts', acts.join('　')));
+      blocks.push(block);
+    });
+    if (blocks.length) {
+      summaryEl.appendChild(mk('div', 'xpet-sum-sec', '分站明细'));
+      blocks.forEach((b) => summaryEl.appendChild(b));
     }
 
+    // ⑤ 经验：今天预计 + 累计；下一件装备放在小字里
     const next = XPET.ACCESSORIES.find((a) => a.need > xpTotal);
-    rows.push(['经验', `今天预计 +${todayXp()}（今晚自动结算）· 累计 ${xpTotal}` + (next ? ` · 下一件装备 ${next.icon}${next.name} 还差 ${next.need - xpTotal}` : '')]);
+    summaryEl.appendChild(mk('div', 'xpet-sum-sec', '经验'));
+    const xpMain = mk('div', 'xpet-sum-xp');
+    xpMain.appendChild(mk('span', '', '今天预计 '));
+    xpMain.appendChild(mk('b', 'xpet-sum-xp-num', `+${todayXp()}`));
+    xpMain.appendChild(mk('span', 'xpet-sum-xp-total', `累计 ${xpTotal}`));
+    summaryEl.appendChild(xpMain);
+    summaryEl.appendChild(mk('div', 'xpet-sum-sub', '次日自动结算' + (next ? `　下一件 ${next.icon}${next.name} 还差 ${next.need - xpTotal}` : '　装备都集齐啦')));
 
-    summaryEl = document.createElement('div');
-    summaryEl.id = 'xpet-summary';
-    const title = document.createElement('div');
-    title.className = 'xpet-sum-title';
-    title.textContent = '今日小结';
-    summaryEl.appendChild(title);
-    rows.forEach(([k, v]) => {
-      const row = document.createElement('div');
-      row.className = 'xpet-sum-row';
-      const kk = document.createElement('span'); kk.className = 'xpet-sum-k'; kk.textContent = k;
-      const vv = document.createElement('span'); vv.textContent = v;
-      row.appendChild(kk); row.appendChild(vv);
-      summaryEl.appendChild(row);
-    });
     const line = lineFor(over ? 'summaryOver' : 'summaryOk');
     if (line) {
       const foot = document.createElement('div');
@@ -1183,12 +1417,15 @@
     document.body.appendChild(summaryEl);
 
     const r = root.getBoundingClientRect();
-    const w = summaryEl.offsetWidth || 260, h = summaryEl.offsetHeight || 150;
+    const w = summaryEl.offsetWidth || 300, h = summaryEl.offsetHeight || 260;
     const left = Math.max(MARGIN, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - MARGIN));
     const top = r.top - h - 40 > MARGIN ? r.top - h - 40 : Math.min(r.bottom + 34, window.innerHeight - h - MARGIN);
     summaryEl.style.left = left + 'px';
     summaryEl.style.top = Math.max(MARGIN, top) + 'px';
-    summaryTimer = setTimeout(closeSummary, 20000); // 不用管它，20 秒后自己收起
+    const armClose = (ms) => { clearTimeout(summaryTimer); summaryTimer = setTimeout(closeSummary, ms); };
+    summaryEl.addEventListener('mouseenter', () => clearTimeout(summaryTimer)); // 鼠标放在卡片上时不自动收起，方便慢慢看
+    summaryEl.addEventListener('mouseleave', () => armClose(8000));
+    armClose(30000); // 不用管它，30 秒后自己收起
   }
 
   // =====================================================

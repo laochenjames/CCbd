@@ -222,23 +222,53 @@
 
 /* 今日小结卡片 */
 #xpet-summary {
+  --s-sub: #6b737b; --s-line: #e6e9ec; --s-chip: #f2f4f6; --s-ok: #2f9e5a; --s-warn: #b88a00; --s-low: #7a8a99;
   position: fixed;
   z-index: 2147483647;
-  width: 260px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  box-sizing: border-box;
+  width: 320px;
+  max-height: min(78vh, 560px);
+  overflow-y: auto;
+  padding: 14px 16px 12px;
+  border-radius: 14px;
   background: #fff;
   color: #222;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.06);
   font: 13px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
 }
-#xpet-summary .xpet-sum-title { font-weight: 600; margin-bottom: 4px; }
-#xpet-summary .xpet-sum-row { margin: 2px 0; }
-#xpet-summary .xpet-sum-k { color: #888; margin-right: 8px; }
-#xpet-summary .xpet-sum-foot { margin-top: 8px; padding-top: 6px; border-top: 1px solid #e3e6e8; color: #2f9e5a; }
+/* 头部：标题在左、总时长在右（最大的数字） */
+#xpet-summary .xpet-sum-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+#xpet-summary .xpet-sum-title { font-size: 14px; font-weight: 600; }
+#xpet-summary .xpet-sum-time { font-size: 22px; line-height: 1.15; font-weight: 700; }
+/* 状态行：圆点颜色表示和你设的区间的关系，没有惩罚色 */
+#xpet-summary .xpet-sum-state { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 13px; }
+#xpet-summary .xpet-sum-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--s-ok); }
+#xpet-summary .xpet-sum-state.over .xpet-sum-dot { background: var(--s-warn); }
+#xpet-summary .xpet-sum-state.under .xpet-sum-dot { background: var(--s-low); }
+#xpet-summary .xpet-sum-sub { margin-top: 2px; font-size: 11.5px; line-height: 1.45; color: var(--s-sub); }
+/* 五项互动：数字在上、名称在下，为 0 的变淡 */
+#xpet-summary .xpet-sum-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 12px 0 4px; }
+#xpet-summary .xpet-sum-cell { padding: 7px 0 6px; border-radius: 10px; background: var(--s-chip); text-align: center; }
+#xpet-summary .xpet-sum-num { font-size: 18px; line-height: 1.2; font-weight: 700; }
+#xpet-summary .xpet-sum-lab { margin-top: 1px; font-size: 11px; color: var(--s-sub); }
+#xpet-summary .xpet-sum-cell.zero .xpet-sum-num { color: var(--s-sub); font-weight: 500; opacity: 0.7; }
+/* 分组小标题 */
+#xpet-summary .xpet-sum-sec { margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--s-line); font-size: 11px; letter-spacing: 0.04em; color: var(--s-sub); }
+/* 分站明细：第一行站名 + 时长，第二行互动数 */
+#xpet-summary .xpet-sum-site { margin-top: 6px; }
+#xpet-summary .xpet-sum-site-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+#xpet-summary .xpet-sum-site-name { font-size: 13px; }
+#xpet-summary .xpet-sum-site-time { font-size: 13px; font-weight: 600; }
+#xpet-summary .xpet-sum-site-acts { margin-top: 1px; padding-left: 1.6em; font-size: 11.5px; color: var(--s-sub); }
+/* 经验 */
+#xpet-summary .xpet-sum-xp { display: flex; align-items: baseline; gap: 4px; margin-top: 4px; }
+#xpet-summary .xpet-sum-xp-num { margin-right: auto; font-size: 17px; font-weight: 700; color: var(--s-ok); }
+#xpet-summary .xpet-sum-xp-total { font-size: 12px; color: var(--s-sub); }
+#xpet-summary .xpet-sum-foot { margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--s-line); font-size: 12.5px; color: var(--s-ok); }
 @media (prefers-color-scheme: dark) {
-  #xpet-summary { background: #2a2d31; color: #eee; }
-  #xpet-summary .xpet-sum-foot { border-top-color: #444; color: #6fd08c; }
+  #xpet-summary { --s-sub: #a2a9b0; --s-line: #3d4248; --s-chip: #33373c; --s-ok: #6fd08c; --s-warn: #e0b94a; --s-low: #8da2b5; background: #2a2d31; color: #eee; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06); }
 }
 
 
