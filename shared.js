@@ -22,7 +22,7 @@ const XPET = {
   SPRITE_FPS: { idle: 9, busy: 12, sleepy: 8, yawn: 7, poke: 13 },
   BUILTIN_SPRITES: {
     teddy: Object.fromEntries(['idle', 'busy', 'sleepy', 'yawn', 'poke'].map((st) => [st, { frames: st === 'sleepy' ? 24 : 18, fps: { idle: 9, busy: 12, sleepy: 8, yawn: 7, poke: 13 }[st] || 10, fw: 201, fh: 188, url: 'sprites/teddy/' + st + '.webp' }])),
-    cat: Object.fromEntries(['idle', 'busy', 'sleepy', 'yawn', 'poke'].map((st) => [st, { frames: st === 'sleepy' ? 24 : 18, fps: { idle: 9, busy: 12, sleepy: 8, yawn: 7, poke: 13 }[st] || 10, fw: 245, fh: 220, url: 'sprites/cat/' + st + '.webp' }])),
+    cat: Object.fromEntries(['idle', 'busy', 'sleepy', 'yawn', 'poke'].map((st) => [st, { frames: st === 'sleepy' ? 24 : 18, fps: { idle: 9, busy: 12, sleepy: 8, yawn: 7, poke: 13 }[st] || 10, fw: 199, fh: 187, url: 'sprites/cat/' + st + '.webp' }])),
   },
   builtinSprite(c, st) {
     const b = XPET.BUILTIN_SPRITES[c.id];
