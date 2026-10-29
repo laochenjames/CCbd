@@ -23,10 +23,13 @@ const XPET = {
   BUILTIN_SPRITES: {
     teddy: Object.fromEntries(['idle', 'busy', 'sleepy', 'yawn', 'poke'].map((st) => [st, { frames: st === 'sleepy' ? 24 : 18, fps: { idle: 9, busy: 12, sleepy: 8, yawn: 7, poke: 13 }[st] || 10, fw: 201, fh: 188, url: 'sprites/teddy/' + st + '.webp' }])),
     cat: Object.fromEntries(['idle', 'busy', 'sleepy', 'yawn', 'poke'].map((st) => [st, { frames: st === 'sleepy' ? 24 : 18, fps: { idle: 9, busy: 12, sleepy: 8, yawn: 7, poke: 13 }[st] || 10, fw: 199, fh: 187, url: 'sprites/cat/' + st + '.webp' }])),
+    doge: Object.fromEntries(['idle', 'busy', 'sleepy', 'yawn', 'poke'].map((st) => [st, { frames: st === 'sleepy' ? 24 : 18, fps: { idle: 9, busy: 12, sleepy: 8, yawn: 7, poke: 13 }[st] || 10, fw: 200, fh: 188, url: 'sprites/doge/' + st + '.webp' }])),
+    pepe: Object.fromEntries(['idle', 'busy', 'sleepy', 'yawn', 'poke'].map((st) => [st, { frames: st === 'sleepy' ? 24 : 18, fps: { idle: 9, busy: 12, sleepy: 8, yawn: 7, poke: 13 }[st] || 10, fw: 200, fh: 188, url: 'sprites/pepe/' + st + '.webp' }])),
   },
   builtinSprite(c, st) {
-    const b = XPET.BUILTIN_SPRITES[c.id];
-    return b && !c.img && c.look === c.id && b[st] ? b[st] : null;
+    const key = c.look || c.id;
+    const b = XPET.BUILTIN_SPRITES[key];
+    return b && !c.img && b[st] ? b[st] : null;
   },
   // 某个角色某个状态实际要播放的动画：用户自己的优先，其次内置；返回 { meta, url|null } 或 null
   spriteFor(c, st) {
@@ -140,13 +143,13 @@ const XPET = {
 
   // 内置形象：look 为 'teddy'（泰迪犬）或 'slime'（小史莱姆）；没有上传自定义图片时使用
   builtinChar(look) {
-    const names = { teddy: '泰迪', slime: '小史莱姆', cat: '哈基米' };
-    return { id: look, name: names[look], img: null, look, accessory: "none", size: 1, sprites: {}, phrases: XPET.defaultPhrases() };
+    const names = { teddy: '泰迪', slime: '小史莱姆', cat: '哈基米', doge: '柴犬', pepe: '佩佩' };
+    return { id: look, name: names[look] || look, img: null, look, accessory: "none", size: 1, sprites: {}, phrases: XPET.defaultPhrases() };
   },
 
-  // 全新安装：泰迪犬排第一，是默认角色；小史莱姆保留，二选一
+  // 全新安装：泰迪犬排第一，是默认角色；内置角色均可选择
   defaultChars() {
-    return [XPET.builtinChar('teddy'), XPET.builtinChar('slime'), XPET.builtinChar('cat')];
+    return [XPET.builtinChar('teddy'), XPET.builtinChar('slime'), XPET.builtinChar('cat'), XPET.builtinChar('doge'), XPET.builtinChar('pepe')];
   },
 
   // ---------- 显示与提醒设置 ----------
@@ -347,7 +350,7 @@ const XPET = {
     if (Array.isArray(phrases.unlock) && phrases.unlock.some((t) => OLD_UNLOCK.includes(t))) {
       phrases.unlock = XPET.DEFAULT_PHRASES.unlock.slice();
     }
-    const look = c.look === 'teddy' || c.look === 'slime' || c.look === 'cat' ? c.look : 'slime'; // 老数据没有 look 字段，沿用原来的史莱姆
+    const look = ['teddy', 'slime', 'cat', 'doge', 'pepe'].includes(c.look) ? c.look : 'slime'; // 老数据没有 look 字段，沿用原来的史莱姆
     const sprites = {};
     const raw = c.sprites && typeof c.sprites === 'object' ? c.sprites : {};
     const n = (v, lo, hi, d) => { const x = Math.floor(Number(v)); return Number.isFinite(x) && x >= lo && x <= hi ? x : d; };
@@ -358,7 +361,7 @@ const XPET = {
       if (!frames || !fw || !fh) continue;
       sprites[st] = { frames, fps: n(m.fps, 1, 30, 8), fw, fh };
     }
-    const size = XPET.SIZES.some(([v]) => v === c.size) ? c.size : ((c.id === 'teddy' || c.id === 'cat') && c.size === undefined ? 1.6 : 1); // 内置泰迪的动画画面更精细，默认用「大」
+    const size = XPET.SIZES.some(([v]) => v === c.size) ? c.size : (['teddy', 'cat', 'doge', 'pepe'].includes(c.id) && c.size === undefined ? 1.6 : 1); // 内置动物动画更精细，默认用「大」
     return { id: String(c.id), name: String(c.name || '未命名'), img, look, accessory, size, sprites, phrases };
   },
 
@@ -384,6 +387,18 @@ const XPET = {
     if (!seeded.includes('cat')) {
       if (!fresh && !chars.some((c) => c.id === 'cat')) chars.push(XPET.builtinChar('cat'));
       seeded.push('cat');
+      dirty = true;
+    }
+    // 柴犬：老用户升级时补一只，删掉后不再回来
+    if (!seeded.includes('doge')) {
+      if (!fresh && !chars.some((c) => c.id === 'doge')) chars.push(XPET.builtinChar('doge'));
+      seeded.push('doge');
+      dirty = true;
+    }
+    // 佩佩：老用户升级时补一只，删掉后不再回来
+    if (!seeded.includes('pepe')) {
+      if (!fresh && !chars.some((c) => c.id === 'pepe')) chars.push(XPET.builtinChar('pepe'));
+      seeded.push('pepe');
       dirty = true;
     }
     if (!chars.some((c) => c.id === active)) active = chars[0].id;

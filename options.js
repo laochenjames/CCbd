@@ -151,7 +151,7 @@
     // 头部：头像、名称、按钮
     const avatar = el('div', { className: 'avatar' });
     if (c.img) avatar.appendChild(el('img', { src: c.img, alt: c.name }));
-    else avatar.textContent = c.look === 'teddy' ? '🐶' : c.look === 'cat' ? '🐱' : '🟢';
+    else avatar.textContent = c.look === 'teddy' ? '🐶' : c.look === 'cat' ? '🐱' : c.look === 'doge' ? '🐕' : c.look === 'pepe' ? '🐸' : '🟢';
 
     const nameInput = el('input', { className: 'name', type: 'text', value: c.name, maxLength: 20, placeholder: '角色名称' });
     nameInput.addEventListener('input', () => { c.name = nameInput.value.trim() || '未命名'; saveSoon(); });
@@ -192,11 +192,11 @@
       el('div', { className: 'btns' }, [uploadBtn, resetImgBtn, useBtn, delBtn, fileInput]),
     ]));
 
-    // 内置形象二选一（没有上传自己的图片时使用）
+    // 内置形象选择（没有上传自己的图片时使用）
     const lookRow = el('div', { className: 'acc-row' });
     lookRow.appendChild(el('span', { textContent: '内置形象：' }));
     const lookSel = el('select');
-    [['teddy', '🐶 泰迪犬'], ['slime', '🟢 小史莱姆'], ['cat', '🐱 哈基米']].forEach(([v, t]) => lookSel.appendChild(el('option', { value: v, textContent: t })));
+    [['teddy', '🐶 泰迪犬'], ['cat', '🐱 哈基米'], ['doge', '🐕 柴犬'], ['pepe', '🐸 佩佩'], ['slime', '🟢 小史莱姆']].forEach(([v, t]) => lookSel.appendChild(el('option', { value: v, textContent: t })));
     lookSel.value = c.look || 'slime';
     lookSel.addEventListener('change', () => { c.look = lookSel.value; render(); saveNow(); });
     lookRow.appendChild(el('span', { className: 'hint', textContent: '　上传了自己的图片后，以图片为准' }));

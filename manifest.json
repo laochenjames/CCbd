@@ -51,7 +51,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "sprites/*"
+        "sprites/*",
+        "sprites/*/*"
       ],
       "matches": [
         "https://x.com/*",
