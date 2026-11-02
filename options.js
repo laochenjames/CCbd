@@ -1,6 +1,7 @@
 (async () => {
-  const listEl = document.getElementById('list');
-  const statusEl = document.getElementById('status');
+  const $ = (id) => document.getElementById(id);
+  const listEl = $('list');
+  const statusEl = $('status');
   let { chars, active } = await XPET.load();
 
   // 累计经验（装扮解锁条件）
@@ -247,14 +248,18 @@
     det.appendChild(grid);
     card.appendChild(det);
 
-    const resetBtn = el('button', { textContent: '恢复默认台词' });
+    const aiCardBtn = el('button', { textContent: '✨ AI 定制此角色台词', className: 'primary' });
+    aiCardBtn.addEventListener('click', () => {
+      openAiModal(c.id);
+    });
+    const resetBtn = el('button', { textContent: '恢复默认台词', className: 'btn-subtle' });
     resetBtn.addEventListener('click', () => {
       if (!confirm('把这个角色的所有台词恢复为默认吗？')) return;
       c.phrases = XPET.defaultPhrases();
       render();
       saveNow();
     });
-    card.appendChild(el('div', { className: 'foot' }, [resetBtn]));
+    card.appendChild(el('div', { className: 'foot' }, [aiCardBtn, resetBtn]));
     return card;
   }
 
@@ -268,9 +273,211 @@
 
   render();
 
+  // ---------- AI 设定与台词弹窗控制器 ----------
+  const aiModal = $('ai-modal');
+  const aiModalOpenBtn = $('ai-modal-open-btn');
+  const aiModalClose = $('ai-modal-close');
+  const aiPresetPills = $('ai-preset-pills');
+  const aiLookSel = $('ai-look-sel');
+  const aiNameInput = $('ai-name-input');
+  const aiCallInput = $('ai-call-input');
+  const aiIncludeSlots = $('ai-include-slots');
+  const aiPersonaInput = $('ai-persona-input');
+  const aiCustomInput = $('ai-custom-input');
+  const aiPromptPreview = $('ai-prompt-preview');
+  const aiCopyPromptBtn = $('ai-copy-prompt-btn');
+  const aiImportInput = $('ai-import-input');
+  const aiTargetSel = $('ai-target-sel');
+  const aiSyncSlots = $('ai-sync-slots');
+  const aiImportMsg = $('ai-import-msg');
+  const aiImportApplyBtn = $('ai-import-apply-btn');
+
+  let activePresetId = null;
+
+  function updateAiPrompt() {
+    if (!aiPromptPreview) return;
+    const prompt = XPET.AI.buildPrompt({
+      look: aiLookSel.value,
+      name: aiNameInput.value,
+      callUser: aiCallInput.value,
+      persona: aiPersonaInput.value,
+      custom: aiCustomInput.value,
+      includeSlots: aiIncludeSlots.checked,
+    });
+    aiPromptPreview.value = prompt;
+  }
+
+  function applyPreset(p) {
+    activePresetId = p.id;
+    aiLookSel.value = p.look;
+    aiNameInput.value = p.charName;
+    aiCallInput.value = p.callUser;
+    aiPersonaInput.value = p.persona;
+    aiCustomInput.value = p.custom;
+    renderPresets();
+    updateAiPrompt();
+  }
+
+  function renderPresets() {
+    if (!aiPresetPills) return;
+    aiPresetPills.innerHTML = '';
+    XPET.AI.PERSONAS.forEach((p) => {
+      const btn = el('button', {
+        type: 'button',
+        className: 'preset-pill' + (activePresetId === p.id ? ' active' : ''),
+        textContent: p.name,
+      });
+      btn.addEventListener('click', () => applyPreset(p));
+      aiPresetPills.appendChild(btn);
+    });
+  }
+
+  function openAiModal(targetCharId = null) {
+    if (!aiModal) return;
+    aiTargetSel.innerHTML = '';
+    aiTargetSel.appendChild(el('option', { value: '__new__', textContent: '➕ 创建为全新角色' }));
+    chars.forEach((c) => {
+      const isCur = c.id === active;
+      const opt = el('option', {
+        value: c.id,
+        textContent: `覆盖角色：${c.name} (${XPET.AI.LOOK_NAMES[c.look] || c.look})` + (isCur ? ' [当前活跃]' : ''),
+      });
+      aiTargetSel.appendChild(opt);
+    });
+
+    if (targetCharId && chars.some((c) => c.id === targetCharId)) {
+      aiTargetSel.value = targetCharId;
+      const targetChar = chars.find((c) => c.id === targetCharId);
+      aiLookSel.value = targetChar.look || 'pepe';
+      aiNameInput.value = targetChar.name || '';
+      activePresetId = null;
+    } else {
+      aiTargetSel.value = '__new__';
+      if (!activePresetId) {
+        applyPreset(XPET.AI.PERSONAS[0]);
+      }
+    }
+
+    renderPresets();
+    updateAiPrompt();
+    aiImportMsg.style.display = 'none';
+    aiModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeAiModal() {
+    if (!aiModal) return;
+    aiModal.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  if (aiModalOpenBtn) aiModalOpenBtn.addEventListener('click', () => openAiModal());
+  if (aiModalClose) aiModalClose.addEventListener('click', closeAiModal);
+  if (aiModal) {
+    aiModal.addEventListener('click', (e) => { if (e.target === aiModal) closeAiModal(); });
+  }
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && aiModal && !aiModal.hidden) closeAiModal();
+  });
+
+  if (aiCopyPromptBtn) {
+    aiCopyPromptBtn.addEventListener('click', async () => {
+      updateAiPrompt();
+      try {
+        await navigator.clipboard.writeText(aiPromptPreview.value);
+        const oldTxt = aiCopyPromptBtn.textContent;
+        aiCopyPromptBtn.textContent = '✅ 已成功复制 Prompt！';
+        setTimeout(() => { aiCopyPromptBtn.textContent = oldTxt; }, 2000);
+      } catch (e) {
+        aiPromptPreview.select();
+        document.execCommand('copy');
+        alert('Prompt 已选中并复制！');
+      }
+    });
+  }
+
+  [aiLookSel, aiNameInput, aiCallInput, aiIncludeSlots, aiPersonaInput, aiCustomInput].forEach((elem) => {
+    if (elem) elem.addEventListener('input', updateAiPrompt);
+    if (elem && elem.tagName === 'SELECT') elem.addEventListener('change', updateAiPrompt);
+  });
+
   // ---------- 显示与提醒设置 ----------
   const settings = await XPET.loadSettings();
-  const $ = (id) => document.getElementById(id);
+
+  if (aiImportApplyBtn) {
+    aiImportApplyBtn.addEventListener('click', async () => {
+      const rawText = aiImportInput.value;
+      const res = XPET.AI.parseOutput(rawText);
+      if (!res.ok) {
+        aiImportMsg.className = 'ai-msg err';
+        aiImportMsg.textContent = '❌ ' + res.error;
+        aiImportMsg.style.display = 'block';
+        return;
+      }
+
+      const { data, stats } = res;
+      const target = aiTargetSel.value;
+      let appliedCharName = data.name;
+
+      if (target === '__new__') {
+        const id = 'c' + Date.now().toString(36);
+        const newChar = {
+          id,
+          name: data.name,
+          img: null,
+          look: data.look,
+          accessory: 'none',
+          size: 1.6,
+          sprites: {},
+          phrases: data.phrases,
+        };
+        chars.push(newChar);
+        active = id;
+      } else {
+        const c = chars.find((x) => x.id === target);
+        if (c) {
+          c.name = data.name || c.name;
+          c.look = data.look || c.look;
+          c.phrases = data.phrases;
+          appliedCharName = c.name;
+        }
+      }
+
+      // 同步时段问候（如果勾选且存在）
+      let slotMsg = '';
+      if (aiSyncSlots.checked && Array.isArray(data.slots) && data.slots.length > 0) {
+        settings.greeting = settings.greeting || { enabled: true, slots: XPET.defaultSlots() };
+        settings.greeting.slots = settings.greeting.slots || XPET.defaultSlots();
+        data.slots.forEach((newSlot) => {
+          const exist = settings.greeting.slots.find((s) => s.id === newSlot.id);
+          if (exist) {
+            exist.lines = newSlot.lines;
+          } else {
+            const rangeMap = { dawn: [0, 5], morning: [5, 11], noon: [11, 14], evening: [18, 24] };
+            const [start, end] = rangeMap[newSlot.id] || [8, 10];
+            settings.greeting.slots.push({ id: newSlot.id, name: newSlot.name, start, end, lines: newSlot.lines });
+          }
+        });
+        try {
+          await XPET.saveSettings(settings);
+          if (typeof renderSlots === 'function') renderSlots();
+          slotMsg = `，并同步更新了 ${data.slots.length} 个时段问候`;
+        } catch (_) {}
+      }
+
+      render();
+      saveNow();
+
+      aiImportMsg.className = 'ai-msg ok';
+      aiImportMsg.textContent = `🎉 成功导入角色「${appliedCharName}」！共导入 ${stats.actionCount} 类动作台词（${stats.lineCount} 条）${slotMsg}。修改已实时保存生效！`;
+      aiImportMsg.style.display = 'block';
+
+      setTimeout(() => {
+        closeAiModal();
+        showStatus(`已成功导入角色「${appliedCharName}」全套 AI 台词`, true);
+      }, 1500);
+    });
+  }
   const itemBoxes = Array.from(document.querySelectorAll('#s-items input[data-item]'));
   const intIn = (el, min, max, fallback) => {
     const v = Math.floor(Number(el.value));

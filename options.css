@@ -128,3 +128,44 @@ details.grp > summary { color: var(--text); font-weight: 600; font-size: 14px; }
 .book-item.locked { border-left-color: var(--line); color: var(--sub); }
 .book-title { font-weight: 600; }
 .book-text { margin-top: 2px; line-height: 1.6; }
+
+/* 角色管理工具栏 */
+.char-toolbar { display: flex; gap: 10px; align-items: center; margin: 16px 0 14px; flex-wrap: wrap; }
+.ai-btn { background: linear-gradient(135deg, #2f9e5a 0%, #17bf63 100%); color: #fff; border: none; font-weight: 600; box-shadow: 0 2px 8px rgba(47,158,90,0.25); }
+.ai-btn:hover { filter: brightness(1.08); }
+
+/* 卡片底部操作栏 */
+.foot { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.btn-subtle { font-size: 12px; padding: 4px 10px; }
+
+/* AI 弹窗 */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
+.modal-backdrop[hidden] { display: none !important; }
+.modal { background: var(--card); border: 1px solid var(--line); border-radius: 14px; width: 100%; max-width: 720px; max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35); animation: modal-in 0.2s ease-out; }
+@keyframes modal-in { from { opacity: 0; transform: scale(0.97) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); flex: none; }
+.modal-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.modal-close { border: none; background: transparent; font-size: 18px; cursor: pointer; color: var(--sub); padding: 4px 8px; border-radius: 6px; }
+.modal-close:hover { color: var(--text); background: var(--bg); }
+.modal-body { padding: 16px 18px 24px; overflow-y: auto; flex: 1; }
+
+.ai-box { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.ai-box-title { font-size: 14px; margin-bottom: 10px; color: var(--text); display: flex; align-items: center; justify-content: space-between; }
+.ai-field { margin-bottom: 10px; }
+.ai-field label { display: block; font-size: 12.5px; color: var(--sub); margin-bottom: 4px; font-weight: 500; }
+.ai-field input[type="text"], .ai-field select { width: 100%; font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); box-sizing: border-box; }
+.ai-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 580px) { .ai-grid-2 { grid-template-columns: 1fr; } }
+
+.preset-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.preset-pill { font-size: 12px; padding: 4px 10px; border-radius: 20px; background: var(--card); border: 1px solid var(--line); color: var(--text); cursor: pointer; transition: all 0.15s; }
+.preset-pill:hover { border-color: var(--accent); color: var(--accent); }
+.preset-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.prompt-textarea { width: 100%; height: 160px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.5; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); resize: vertical; box-sizing: border-box; }
+.import-textarea { width: 100%; height: 140px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; line-height: 1.45; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); resize: vertical; box-sizing: border-box; }
+.prompt-textarea:focus, .import-textarea:focus, .ai-field input:focus, .ai-field select:focus { outline: none; border-color: var(--accent); }
+
+.ai-msg { margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+.ai-msg.ok { background: color-mix(in srgb, var(--accent) 15%, var(--card)); border: 1px solid var(--accent); color: var(--accent); }
+.ai-msg.err { background: color-mix(in srgb, #d9534f 15%, var(--card)); border: 1px solid #d9534f; color: #d9534f; }

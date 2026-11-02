@@ -413,4 +413,251 @@ const XPET = {
   save(chars, active) {
     return chrome.storage.local.set({ [XPET.KEYS.chars]: chars, [XPET.KEYS.active]: active });
   },
+
+  // ---------- AI 设定与台词一键生成 / 导入 ----------
+  AI: {
+    PERSONAS: [
+      {
+        id: 'degen',
+        name: '🐸 Web3 Degen 交易员',
+        look: 'pepe',
+        charName: '佩佩',
+        callUser: '老铁',
+        persona: '狂热且幽默的 Web3 链上交易员与投研伴侣，满嘴币圈梗，敏锐关注推特和广场动态，偶尔毒舌提醒止损、喝水与保重身体。',
+        custom: '多结合推特/币安广场/OK星球的加密社区梗（如炒币、投研、百倍币、K线、挂单、解套、Alpha等），幽默生动，有陪伴感。',
+      },
+      {
+        id: 'tsundere',
+        name: '🐱 傲娇吐槽猫咪',
+        look: 'cat',
+        charName: '哈基米',
+        callUser: '笨蛋主人',
+        persona: '傲娇高冷、嘴硬心软的猫咪，表面上嫌弃主人又在摸鱼刷手机，实际上离不开主人，时刻偷偷关注主人的身体和情绪，偶尔带点口癖“喵”。',
+        custom: '说话带点傲娇和口癖喵，常在主人熬夜或刷太久时嫌弃却又强制要求休息。',
+      },
+      {
+        id: 'cheerful',
+        name: '🐕 元气忠诚柴柴',
+        look: 'doge',
+        charName: '阿柴',
+        callUser: '主人',
+        persona: '元气满满、阳光忠诚的柴犬伴侣，无条件信任和支持主人，看到主人发帖或点赞就开心摇尾巴，把主人的健康和快乐放在第一位。',
+        custom: '充满活力和鼓励，偶尔带汪汪拟声词，让用户感到温暖和干劲十足。',
+      },
+      {
+        id: 'worker',
+        name: '💼 毒舌打工人搭子',
+        look: 'teddy',
+        charName: '卷卷',
+        callUser: '打工人',
+        persona: '幽默毒舌的资深职场老油条，咖啡续命，精通摸鱼哲学，催你按时吃饭下班，吐槽周一和加班。',
+        custom: '职场黑话与摸鱼幽默，提醒用户按时下班、劳逸结合、不要为了工作牺牲生活。',
+      },
+      {
+        id: 'healing',
+        name: '☕ 温柔治愈系搭子',
+        look: 'teddy',
+        charName: '暖暖',
+        callUser: '宝子',
+        persona: '温柔体贴、轻声细语的治愈系伴侣，不施加任何压力，包容用户的所有疲惫与小情绪，像热饮一样舒缓心灵。',
+        custom: '温和细腻，多给正向的情绪价值，提醒深呼吸、喝温水、放松肩膀。',
+      },
+      {
+        id: 'cyber',
+        name: '⚡ 赛博AI助手',
+        look: 'slime',
+        charName: 'Nexus',
+        callUser: '指挥官',
+        persona: '来自未来的赛博机体AI管家，冷静睿智，分析效率指标，偶尔展现出觉醒的情感温度。',
+        custom: '带点未来科技感和系统日志风格，用数据分析主人的在线状态。',
+      },
+    ],
+
+    LOOK_NAMES: {
+      teddy: '泰迪犬',
+      cat: '哈基米(猫)',
+      doge: '柴犬',
+      pepe: '佩佩蛙',
+      slime: '小史莱姆',
+    },
+
+    buildPrompt(opts = {}) {
+      const look = opts.look || 'pepe';
+      const lookName = XPET.AI.LOOK_NAMES[look] || look;
+      const charName = (opts.name || '').trim() || lookName;
+      const persona = (opts.persona || '').trim() || '随和幽默的桌面伴宠';
+      const callUser = (opts.callUser || '').trim() || '你';
+      const custom = (opts.custom || '').trim() || '无特殊要求，请自由发挥。';
+      const includeSlots = opts.includeSlots !== false;
+
+      return `你是一名专属桌面伴宠（Desk Pet）台词与人设架构师。
+请为一款运行在浏览器（推特/X、币安广场、OK星球）上的桌面伴宠插件【CCbd 伴宠】设计一套充满个性的角色台词与配置。
+
+【伴宠设定要求】
+- 角色形象：${lookName}（形象ID: "${look}"）
+- 角色名称：${charName}
+- 对用户的称呼：${callUser}
+- 人设与性格：${persona}
+- 额外定制需求：${custom}
+
+【台词设计规范与变量占位符】
+伴宠会在用户浏览网页与互动时触发不同台词。请结合人设生成地道、富有个性且自然的台词。
+必须根据场景合理使用以下变量占位符（插件会在运行时自动替换成真实数值）：
+1. click (平时点击伴宠): 3~6句，日常闲聊/互动/吐槽，可用 {min} 表示今日在线分钟数。
+2. post (发文/发推/发帖/回复后): 2~4句，用户发送内容后的互动与鼓励，可用 {n} 表示今日第几条。
+3. like (点赞): 2~3句，点赞内容时的互动。
+4. bookmark (收藏): 2~3句，收藏推文/帖子时的互动。
+5. repost (转发/引用): 2~3句，转发内容时的互动。
+6. follow (关注新账号): 2~3句，关注时的互动。
+7. clickEarly (刚开始在线不到3分钟时点击): 2~3句，刚来时的打招呼。
+8. tired (连续使用较长提醒): 2~4句，提醒伸个懒腰/喝水/休息，可用 {min}。
+9. night (深夜1点-5点仍在使用): 2~4句，夜猫子关怀/劝睡。
+10. nearCap (接近每日设定时长上限80%): 2~3句，可用 {left} 表示还剩几分钟到达上限。
+11. atCap (到达每日设定时长上限/经验满额): 2~3句，可用 {xp} 表示今日满额经验。
+12. settled (每日首次出现汇报昨日到账经验): 2~3句，【必须保留】{when} {gain} {total} {nextHint} 这四个变量！例如："{when} +{gain} 经验，累计 {total}。{nextHint}"
+13. settledZero (昨日无经验结算): 2~3句，【必须保留】{when} 变量。例如："{when}没攒到经验，不要紧，今天慢慢来"
+14. milestone (陪伴天数里程碑): 2~3句，可用 {days} 表示累计天数。例如："陪你第 {days} 天啦"
+15. back (中途离开超过设定时间重新回来): 2~3句，欢迎回来，可用 {min}。
+16. story (日记小本子写下新一页): 2句，可用 {title} 表示故事标题。例如："小本子多了一页「{title}」"
+17. unlock (解锁新工位装备): 2句，可用 {name} 表示装备名称。例如："新装扮 {name}，不用特地来领"
+18. summaryOk (今日时长在健康范围内总结): 2~3句，可用 {xp} 表示今日预计经验。
+19. summaryOver (今日时长超出上限总结): 2~3句。
+${includeSlots ? `
+【时段问候 (通用每日首次问候)】
+- morning (早上 5-11点): 2句早安问候
+- noon (中午 11-14点): 2句午饭/午休问候
+- evening (晚上 18-24点): 2句晚间问候
+- dawn (凌晨 0-5点): 2句深夜/凌晨问候
+` : ''}
+【重要输出要求】
+请直接输出纯 JSON 数据，使用 \`\`\`json 代码块包裹，不要包含任何前言、解释或对话废话。
+JSON 数据结构必须严格符合以下格式：
+\`\`\`json
+{
+  "name": "${charName}",
+  "look": "${look}",
+  "persona": "${persona}",
+  "phrases": {
+    "click": ["..."],
+    "post": ["..."],
+    "like": ["..."],
+    "bookmark": ["..."],
+    "repost": ["..."],
+    "follow": ["..."],
+    "clickEarly": ["..."],
+    "tired": ["..."],
+    "night": ["..."],
+    "nearCap": ["..."],
+    "atCap": ["..."],
+    "settled": ["{when} +{gain} 经验，累计 {total}。{nextHint}"],
+    "settledZero": ["{when}没攒到经验，不要紧，今天慢慢来"],
+    "milestone": ["陪你第 {days} 天啦"],
+    "back": ["回来啦～"],
+    "story": ["小本子多了一页「{title}」"],
+    "unlock": ["攒够啦，新装扮「{name}」已解锁！"],
+    "summaryOk": ["今天刚刚好"],
+    "summaryOver": ["今天有点久了，明天慢慢来"]
+  }${includeSlots ? `,
+  "slots": [
+    { "id": "dawn", "name": "凌晨", "lines": ["..."] },
+    { "id": "morning", "name": "早上", "lines": ["..."] },
+    { "id": "noon", "name": "中午", "lines": ["..."] },
+    { "id": "evening", "name": "晚上", "lines": ["..."] }
+  ]` : ''}
+}
+\`\`\``;
+    },
+
+    parseOutput(text) {
+      if (!text || typeof text !== 'string') {
+        return { ok: false, error: '输入内容为空，请粘贴 AI 的生成结果。' };
+      }
+      try {
+        let clean = text.trim();
+        // 提取 ```json 代码块
+        const blockMatch = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+        if (blockMatch) clean = blockMatch[1].trim();
+
+        // 截取首个 { 到最后一个 }
+        const start = clean.indexOf('{');
+        const end = clean.lastIndexOf('}');
+        if (start === -1 || end === -1 || end <= start) {
+          return { ok: false, error: '未识别到有效的 JSON 对象格式（缺少花括号 {}）。' };
+        }
+        let jsonStr = clean.slice(start, end + 1);
+        // 清理末尾多余逗号 [a, b,] 或 {"a": 1,}
+        jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
+
+        const parsed = JSON.parse(jsonStr);
+        if (!parsed || typeof parsed !== 'object') {
+          return { ok: false, error: '解析结果不是有效的 JSON 对象。' };
+        }
+
+        // 提取 phrases
+        const rawPhrases = parsed.phrases && typeof parsed.phrases === 'object' ? parsed.phrases : parsed;
+        const validActions = XPET.ACTIONS.map(([k]) => k);
+        const phrases = {};
+        let lineCount = 0;
+        let actionCount = 0;
+
+        for (const act of validActions) {
+          const arr = rawPhrases[act];
+          if (Array.isArray(arr) && arr.length > 0) {
+            const lines = arr.map((s) => String(s || '').trim()).filter(Boolean);
+            if (lines.length > 0) {
+              phrases[act] = lines;
+              lineCount += lines.length;
+              actionCount++;
+              continue;
+            }
+          }
+          // 如果某类缺失，采用默认台词补全
+          phrases[act] = (XPET.DEFAULT_PHRASES[act] || []).slice();
+        }
+
+        if (actionCount === 0) {
+          return { ok: false, error: '未能从数据中提取到任何有效的伴宠台词分类。' };
+        }
+
+        const validLooks = ['teddy', 'cat', 'doge', 'pepe', 'slime'];
+        const look = validLooks.includes(parsed.look) ? parsed.look : 'pepe';
+        const name = (parsed.name && typeof parsed.name === 'string') ? parsed.name.trim().slice(0, 20) : (XPET.AI.LOOK_NAMES[look] || '新伴宠');
+        const persona = typeof parsed.persona === 'string' ? parsed.persona.trim() : '';
+
+        // 处理 slots
+        let slots = null;
+        let slotLineCount = 0;
+        if (Array.isArray(parsed.slots)) {
+          slots = [];
+          for (const s of parsed.slots) {
+            if (s && typeof s === 'object' && s.id && Array.isArray(s.lines)) {
+              const lines = s.lines.map((l) => String(l || '').trim()).filter(Boolean);
+              if (lines.length > 0) {
+                slots.push({ id: String(s.id), name: String(s.name || s.id), lines });
+                slotLineCount += lines.length;
+              }
+            }
+          }
+        }
+
+        return {
+          ok: true,
+          data: {
+            name,
+            look,
+            persona,
+            phrases,
+            slots,
+          },
+          stats: {
+            actionCount,
+            lineCount,
+            slotLineCount,
+          },
+        };
+      } catch (e) {
+        return { ok: false, error: 'JSON 解析失败：' + (e.message || String(e)) };
+      }
+    },
+  },
 };

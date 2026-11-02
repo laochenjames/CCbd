@@ -52,8 +52,11 @@
       </details>
     </section>
 
+    <div class="char-toolbar">
+      <button id="ai-modal-open-btn" class="primary ai-btn" type="button">✨ AI 设定与台词一键生成 / 导入</button>
+      <button id="add" type="button">＋ 手动新建角色</button>
+    </div>
     <div id="list"></div>
-    <button id="add" class="primary">＋ 新建角色</button>
     <section class="history" id="settings">
       <h2>显示与提醒</h2>
       <p class="hint">点开分组查看；不需要的功能可以在这里关掉，修改会立刻生效。</p>
@@ -150,6 +153,103 @@
         <li>所有数据只保存在你自己的浏览器里，不会上传。浏览器给扩展的存储空间有限（约 10 MB），角色太多或图片太大时会保存失败。</li>
       </ul>
     </section>
+    <!-- AI 设定与台词一键生成 / 导入弹窗 -->
+    <div id="ai-modal" class="modal-backdrop" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ai-modal-title">
+        <div class="modal-head">
+          <div class="modal-title" id="ai-modal-title">✨ AI 角色人设与台词生成器</div>
+          <button id="ai-modal-close" class="modal-close" type="button" aria-label="关闭">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="hint" style="margin-top:0;">无需手动逐条编写数十句台词！只需选择人设或提出定制要求，复制由插件生成的专用 Prompt 发送给你常用的 AI（ChatGPT、Claude、DeepSeek、Kimi 等），再将 AI 返回的 JSON 粘贴回来，即可<b>一键完成角色与全套动作台词的极速导入</b>。</p>
+
+          <!-- 步骤一：配置需求并生成 Prompt -->
+          <div class="ai-box">
+            <div class="ai-box-title"><b>第一步：定制人设需求 & 生成专用 Prompt</b></div>
+            
+            <div class="ai-field">
+              <label>快捷人设灵感（点击自动填入）：</label>
+              <div class="preset-pills" id="ai-preset-pills"></div>
+            </div>
+
+            <div class="ai-grid-2">
+              <div class="ai-field">
+                <label for="ai-look-sel">角色内置形象：</label>
+                <select id="ai-look-sel">
+                  <option value="pepe">🐸 佩佩蛙</option>
+                  <option value="doge">🐕 柴犬</option>
+                  <option value="cat">🐱 哈基米 (猫)</option>
+                  <option value="teddy">🐶 泰迪犬</option>
+                  <option value="slime">🟢 小史莱姆</option>
+                </select>
+              </div>
+              <div class="ai-field">
+                <label for="ai-name-input">角色名称：</label>
+                <input type="text" id="ai-name-input" placeholder="例如：佩佩 / 阿柴 / 喵喵" maxlength="20">
+              </div>
+            </div>
+
+            <div class="ai-grid-2">
+              <div class="ai-field">
+                <label for="ai-call-input">对用户的称呼：</label>
+                <input type="text" id="ai-call-input" placeholder="例如：老铁 / 主人 / 宝子 / 长官" maxlength="20">
+              </div>
+              <div class="ai-field" style="display:flex; align-items:flex-end;">
+                <label class="row" style="margin:0 0 6px 0; cursor:pointer;">
+                  <input type="checkbox" id="ai-include-slots" checked>
+                  同时生成 4 个时段问候（早/午/晚/凌晨）
+                </label>
+              </div>
+            </div>
+
+            <div class="ai-field">
+              <label for="ai-persona-input">性格与人设描述：</label>
+              <input type="text" id="ai-persona-input" placeholder="例如：狂热Web3链上交易员，满嘴币圈梗，偶尔提醒止损与喝水">
+            </div>
+
+            <div class="ai-field">
+              <label for="ai-custom-input">额外个性化要求（可选）：</label>
+              <input type="text" id="ai-custom-input" placeholder="例如：喜欢吐槽、常说币圈术语、说话带喵、多催我喝水">
+            </div>
+
+            <div class="ai-field" style="margin-top:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label for="ai-prompt-preview">生成的专用 Prompt（复制后发给 AI）：</label>
+                <button id="ai-copy-prompt-btn" class="primary" type="button" style="font-weight:600;">📋 复制 Prompt</button>
+              </div>
+              <textarea id="ai-prompt-preview" readonly class="prompt-textarea"></textarea>
+            </div>
+          </div>
+
+          <!-- 步骤二：粘贴 AI 回复并一键导入 -->
+          <div class="ai-box" style="margin-top:16px;">
+            <div class="ai-box-title"><b>第二步：粘贴 AI 的输出 & 一键完成导入</b></div>
+            <p class="hint" style="margin:4px 0 8px;">复制 AI 生成的代码块或整段回答（支持直接粘贴 <code>```json ... ```</code> 内容）：</p>
+            
+            <textarea id="ai-import-input" class="import-textarea" placeholder="在此粘贴 AI 生成的 JSON 内容..."></textarea>
+
+            <div class="ai-grid-2" style="margin-top:10px; align-items:center;">
+              <div class="ai-field">
+                <label for="ai-target-sel">导入目标：</label>
+                <select id="ai-target-sel"></select>
+              </div>
+              <div class="ai-field" style="padding-top:18px;">
+                <label class="row" style="margin:0; cursor:pointer;">
+                  <input type="checkbox" id="ai-sync-slots" checked>
+                  若包含时段问候，同步更新到全局时段
+                </label>
+              </div>
+            </div>
+
+            <div id="ai-import-msg" class="ai-msg" style="display:none;"></div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
+              <button id="ai-import-apply-btn" class="primary" type="button" style="padding:8px 20px; font-weight:600; font-size:15px;">🚀 一键解析并完成导入</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
   <script src="shared.js"></script>
   <script src="stories.js"></script>
