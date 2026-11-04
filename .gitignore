@@ -1,4 +1,5 @@
 # 临时与备份目录
+*.zip
 sprites_backup/
 temp_*/
 *.tmp
