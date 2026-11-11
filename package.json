@@ -1,0 +1,12 @@
+{
+  "name": "ccbd",
+  "version": "0.13.0",
+  "private": true,
+  "description": "CCbd \u4f34\u5ba0\u2014\u2014\u5f00\u53d1\u4e0e\u6253\u5305\u811a\u672c\uff08\u6269\u5c55\u672c\u4f53\u4e0d\u4f9d\u8d56 Node\uff09",
+  "license": "MIT",
+  "scripts": {
+    "check": "node --check content.js && node --check options.js && node --check background.js && node --check popup.js && node --check shared.js && node --check stories.js",
+    "test": "npm run check && node tools/test_site_rules.js && node tools/lint_tone.js && node tools/test_announcer.js && node tools/test_scenes.js",
+    "package": "python tools/package_release.py"
+  }
+}

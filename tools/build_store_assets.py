@@ -33,7 +33,7 @@ def create_screenshot_1():
     # Background decorations
     d.rectangle((0, 0, 1280, 140), fill=(28, 33, 40))
     d.line([(0, 140), (1280, 140)], fill=(45, 52, 62), width=2)
-    draw_header(d, "🐾 CCbd 伴宠 · 陪伴你逛推特、币安广场与OK星球", "专注陪伴 · 生理节律动效 · 治愈工位桌搭 · 绿色健康防沉迷")
+    draw_header(d, "🐾 CCbd 伴宠 · 陪你逛推特、币安广场与OK星球的虚拟嘴替", "行为节点共情陪伴 · 拟真生理节律动效 · 工位桌搭 · 不劝导不催促")
 
     # Site badges row
     sites = [("𝕏 推特 (X/Twitter)", (30, 40, 52)), ("🟡 币安广场 (Binance Square)", (40, 36, 20)), ("🔵 OK星球 (OKX Orbit)", (20, 34, 50))]
@@ -47,10 +47,10 @@ def create_screenshot_1():
 
     # 4 Character Showcase Cards
     chars = [
-        ('teddy', '泰迪犬 · 暖心陪伴', 'sprites/teddy/idle.webp', (201, 188), '“发呆也是一种专注～慢慢来”'),
-        ('cat',   '哈基米 · 傲娇猫咪', 'sprites/cat/idle.webp',   (199, 187), '“在用电脑吗？别摸鱼太久喵”'),
-        ('doge',  '柴犬 · 呆萌元气',   'sprites/doge/busy.webp',  (200, 188), '“认真码字中！今天状态真棒”'),
-        ('pepe',  '佩佩 · Web3交易员', 'sprites/pepe/idle.webp',  (200, 188), '“别慌老铁，K线波动是常态”'),
+        ('teddy', '泰迪犬 · 随和搭子', 'sprites/teddy/idle.webp', (201, 188), '“我也在发呆…这条我也看到了”'),
+        ('cat',   '哈基米 · 傲娇猫咪', 'sprites/cat/idle.webp',   (199, 187), '“我也在刷推特，刚走神了一下”'),
+        ('doge',  '柴犬 · 元气伙伴',   'sprites/doge/busy.webp',  (200, 188), '“发出去了…不知道有没有人看”'),
+        ('pepe',  '佩佩 · Web3交易员', 'sprites/pepe/idle.webp',  (200, 188), '“我也在逛广场，今天好像挺热闹”'),
     ]
 
     card_w = 265
@@ -93,7 +93,7 @@ def create_screenshot_1():
         tag_y = start_y + 425
         d.text((cx + 20, tag_y), "✓ 拟真呼吸/打盹/哈欠", font=get_font(13), fill=(154, 160, 166))
         d.text((cx + 20, tag_y + 26), "✓ 支持上传自定义图片", font=get_font(13), fill=(154, 160, 166))
-        d.text((cx + 20, tag_y + 52), "✓ 19类动作全场景互动", font=get_font(13), fill=(154, 160, 166))
+        d.text((cx + 20, tag_y + 52), "✓ 15类动作全场景互动", font=get_font(13), fill=(154, 160, 166))
 
     im.convert('RGB').save(os.path.join(OUT_DIR, 'screenshot_1_overview.png'))
     print('Generated screenshot_1_overview.png')
@@ -127,20 +127,20 @@ def create_screenshot_2():
         px += 190
 
     # Fields preview
-    d.text((85, 375), "角色形象: 🐸 佩佩蛙   |   角色名称: 炒币老韭菜佩佩", font=get_font(14), fill=(220, 225, 235))
-    d.text((85, 405), "对你的称呼: 老铁       |   包含时段问候: 已勾选 (4个时段)", font=get_font(14), fill=(220, 225, 235))
+    d.text((85, 375), "角色形象: 🐸 佩佩蛙   |   角色名称: 佩佩", font=get_font(14), fill=(220, 225, 235))
+    d.text((85, 405), "语气规范: 第一人称嘴替  |   包含时段问候: 已勾选 (4个时段)", font=get_font(14), fill=(220, 225, 235))
 
     # Prompt Preview Box
-    d.text((85, 445), "生成的专用 Prompt（包含19类场景动作与变量规范）：", font=get_font(14), fill=(76, 194, 124))
+    d.text((85, 445), "生成的专用 Prompt（包含15类场景动作与嘴替语气规范）：", font=get_font(14), fill=(76, 194, 124))
     d.rounded_rectangle((85, 475, 85 + left_w - 50, 680), radius=10, fill=(18, 21, 26), outline=(45, 52, 62))
     prompt_snippet = [
         "你是一名专属桌面伴宠（Desk Pet）台词与人设架构师。",
         "请为【CCbd 伴宠】设计一套充满个性的角色台词与配置。",
         "【伴宠设定要求】形象: 佩佩蛙，人设: Web3 Degen交易员...",
-        "【台词规范与变量】严格使用 {min}, {n}, {left}, {xp}, {when}...",
-        "1. click (平时点击伴宠): 3~6句",
-        "2. post (发文/发推/回复后): 2~4句",
-        "3. tired (连续使用较长提醒): 2~4句",
+        "【台词规范】第一人称嘴替，贴合用户，不劝导不评判...",
+        "1. click / clickX (点击伴宠): 3~5句 “我也在……”",
+        "2. post (发文/发推/回复后): 3~4句 刚发完那一刻的心里话",
+        "3. night (深夜仍在使用): 3~4句 犹豫矛盾口吻，不劝睡",
         "...",
         "请直接输出纯 JSON 数据，使用 ```json 包裹。"
     ]
@@ -164,14 +164,14 @@ def create_screenshot_2():
         "{",
         '  "name": "Degen 佩佩",',
         '  "look": "pepe",',
-        '  "persona": "狂热且幽默的Web3老韭菜，敏锐关注行情",',
+        '  "persona": "狂热且幽默的Web3交易员，替你说出刷帖时的心里话",',
         '  "phrases": {',
-        '    "click": ["在盯盘呢，别催", "大饼又突破了？稳住！"],',
-        '    "post": ["投研小作文已发出，速速引爆广场！"],',
-        '    "like": ["这个alpha观点有水平，点赞了"],',
-        '    "tired": ["你已经盯盘 {min} 分钟了！K线不会跑，先喝口水"],',
-        '    "night": ["凌晨还在看盘？健康才是最大的本金，睡吧老铁"],',
-        '    "settled": ["{when} 到账 {gain} 经验，累计 {total}。{nextHint}"]',
+        '    "clickX": ["我也在刷推特", "这条我也看到了"],',
+        '    "post": ["发出去了…有点紧张，不知道有没有人看"],',
+        '    "like": ["这条懂我，戳到我了"],',
+        '    "night": ["好晚啊…我考虑考虑要不要睡觉"],',
+        '    "milestone": ["不知不觉，一起 {days} 天了"],',
+        '    "story": ["日记多了一页「{title}」"]',
         '  }',
         "}",
         "```"
@@ -182,7 +182,7 @@ def create_screenshot_2():
 
     # Success Notice Card
     d.rounded_rectangle((right_x + 25, 600, right_x + right_w - 25, 665), radius=8, fill=(24, 45, 34), outline=(47, 158, 90))
-    d.text((right_x + 40, 612), "🎉 解析成功：共导入 19 类 58 条台词，并同步更新 4 个时段问候", font=get_font(14), fill=(76, 194, 124))
+    d.text((right_x + 40, 612), "🎉 解析成功：共导入 15 类 48 条台词，并同步更新 4 个时段问候", font=get_font(14), fill=(76, 194, 124))
     d.text((right_x + 40, 638), "✓ 自动去除代码块标记与逗号容错   ✓ 立即自动保存并实时生效", font=get_font(12), fill=(160, 210, 180))
 
     d.rounded_rectangle((right_x + 25, 685, right_x + right_w - 25, 735), radius=8, fill=(47, 158, 90))
@@ -198,20 +198,20 @@ def create_screenshot_3():
     
     d.rectangle((0, 0, 1280, 140), fill=(28, 33, 40))
     d.line([(0, 140), (1280, 140)], fill=(45, 52, 62), width=2)
-    draw_header(d, "🏆 工位伴侣装备随经验解锁 · 双层统计与防沉迷管理", "每天健康浏览区间奖励满额 XP · 自动累积装备 · 数据 100% 纯本地存储保护隐私")
+    draw_header(d, "🏆 工位伴侣装备随陪伴天数解锁 · 双层统计与宠物日记", "累计陪伴天数自动解锁桌搭与日记 · 不催促不评判 · 数据 100% 纯本地存储保护隐私")
 
     # Top Section: Desk Gear Unlock Roadmap
     d.rounded_rectangle((60, 165, 1220, 430), radius=14, fill=(28, 33, 42), outline=(52, 60, 72), width=1)
-    d.text((85, 185), "工位伴侣装备（Desk Gear）随累计经验自动解锁", font=get_font(19), fill=(255, 255, 255))
-    d.text((500, 188), "（纯矢量高清 SVG + 硬件加速微动效，优雅摆放身前桌角）", font=get_font(14), fill=(154, 160, 166))
+    d.text((85, 185), "工位伴侣装备（Desk Gear）随累计陪伴天数自动解锁", font=get_font(19), fill=(255, 255, 255))
+    d.text((530, 188), "（纯矢量高清 SVG + 硬件加速微动效，优雅摆放身前桌角）", font=get_font(14), fill=(154, 160, 166))
 
     gears = [
-        ("极简工位", "0 XP", "🪑", "返璞归真纯净工位"),
-        ("暖心拿铁咖啡", "10 XP (1天)", "☕", "杯口升起缕缕白汽"),
-        ("极客调试小黄鸭", "30 XP (3天)", "🐥", "程序员解压微弹"),
-        ("治愈多肉绿植", "70 XP (7天)", "🪴", "清新饱满陶瓷多肉"),
-        ("赛博霓虹电竞本", "140 XP (14天)", "💻", "RGB霓虹微光呼吸"),
-        ("专注大师金奖杯", "300 XP (成就)", "🏆", "顶端星芒闪耀勋章"),
+        ("极简工位", "0 天", "🪑", "返璞归真纯净工位"),
+        ("暖心拿铁咖啡", "陪伴 3 天", "☕", "杯口升起缕缕白汽"),
+        ("极客调试小黄鸭", "陪伴 7 天", "🐥", "程序员解压微弹"),
+        ("治愈多肉绿植", "陪伴 14 天", "🪴", "清新饱满陶瓷多肉"),
+        ("赛博霓虹电竞本", "陪伴 30 天", "💻", "RGB霓虹微光呼吸"),
+        ("陪伴纪念小奖杯", "陪伴 100 天", "🏆", "一起走过日子的纪念"),
     ]
 
     gx = 85
@@ -230,7 +230,7 @@ def create_screenshot_3():
     d.text((85, 475), "📊 双层行为统计与月度日历", font=get_font(18), fill=(255, 255, 255))
     d.text((85, 508), "• 全网合并总览：在线时长、发帖、点赞、收藏、关注、屏幕滚动距离", font=get_font(13), fill=(210, 215, 225))
     d.text((85, 536), "• 各站独立明细：推特、币安广场、OK星球各站数据独立清晰归类", font=get_font(13), fill=(210, 215, 225))
-    d.text((85, 564), "• 健康时间区间：在预设区间内获满额经验，不催促、无惩罚", font=get_font(13), fill=(210, 215, 225))
+    d.text((85, 564), "• 宠物的日记：随累计陪伴天数自动解锁12页宠物自己的日记", font=get_font(13), fill=(210, 215, 225))
 
     # Mini calendar mockup
     cal_x, cal_y = 85, 605
@@ -245,7 +245,7 @@ def create_screenshot_3():
             d.rounded_rectangle((bx, by, bx + 70, by + 42), radius=6, fill=fill_c, outline=stroke_c)
             d.text((bx + 8, by + 5), f"{r*7+c+1}", font=get_font(11), fill=(154, 160, 166))
             if (r*7+c)%3 == 0:
-                d.text((bx + 8, by + 22), "52分 满额", font=get_font(10), fill=(76, 194, 124))
+                d.text((bx + 8, by + 22), "52分 陪伴", font=get_font(10), fill=(76, 194, 124))
 
     # Bottom Right: Privacy & Local Safety
     d.rounded_rectangle((710, 455, 1220, 755), radius=14, fill=(28, 33, 42), outline=(52, 60, 72), width=1)
@@ -284,8 +284,8 @@ def create_promo_tile():
     d.text((180, 92), "社交广场卡通工位伴宠", font=get_font(14), fill=(76, 194, 124))
     d.text((180, 122), "• 陪伴推特 / 币安广场 / OK星球", font=get_font(12), fill=(180, 185, 195))
     d.text((180, 144), "• ✨ AI 一键定制专属人设与台词", font=get_font(12), fill=(180, 185, 195))
-    d.text((180, 166), "• 治愈桌搭装备随陪伴经验解锁", font=get_font(12), fill=(180, 185, 195))
-    d.text((180, 188), "• 纯本地运行 · 隐私安全防沉迷", font=get_font(12), fill=(180, 185, 195))
+    d.text((180, 166), "• 治愈桌搭装备随陪伴天数解锁", font=get_font(12), fill=(180, 185, 195))
+    d.text((180, 188), "• 纯本地运行 · 贴合陪伴不催促", font=get_font(12), fill=(180, 185, 195))
 
     d.rounded_rectangle((180, 222, 400, 250), radius=6, fill=(47, 158, 90))
     d.text((230, 228), "免费安装使用", font=get_font(13), fill=(255, 255, 255))

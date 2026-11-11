@@ -7,6 +7,7 @@
   const checkX = document.getElementById('pop-x');
   const checkBinance = document.getElementById('pop-binance');
   const checkOkx = document.getElementById('pop-okx');
+  const checkQuiet = document.getElementById('pop-quiet');
   const btnReload = document.getElementById('btn-reload');
   const btnOptions = document.getElementById('btn-options');
 
@@ -34,6 +35,7 @@
   checkX.checked = sites.x !== false;
   checkBinance.checked = sites.binance !== false;
   checkOkx.checked = sites.okx !== false;
+  if (checkQuiet) checkQuiet.checked = !!(settings.quietUntil && Date.now() < settings.quietUntil);
 
   // 3. 渲染当前标签页状态
   function renderTabStatus() {
@@ -87,6 +89,18 @@
   checkX.addEventListener('change', () => updateSiteSetting('x', checkX.checked));
   checkBinance.addEventListener('change', () => updateSiteSetting('binance', checkBinance.checked));
   checkOkx.addEventListener('change', () => updateSiteSetting('okx', checkOkx.checked));
+  if (checkQuiet) {
+    checkQuiet.addEventListener('change', async () => {
+      if (checkQuiet.checked) {
+        const end = new Date();
+        end.setHours(24, 0, 0, 0);
+        settings.quietUntil = end.getTime();
+      } else {
+        settings.quietUntil = 0;
+      }
+      await XPET.saveSettings(settings);
+    });
+  }
 
   // 5. 立即刷新当前标签页
   btnReload.addEventListener('click', () => {

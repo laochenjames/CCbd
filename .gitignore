@@ -28,3 +28,18 @@ Desktop.ini
 *.swp
 *.swo
 *~
+
+raw_images/
+
+# 中间产物，可由 raw_images/ 通过 tools/build_pet_assets.py 重新生成
+public/assets/pet/
+
+# 已退役角色素材：未取得授权或不属于本产品，不入库（本地保留，见 HANDOFF.md）
+sprites/cat/
+sprites/doge/
+sprites/pepe/
+sprites/teddy/
+
+# 调试与开发对比测试页面
+preview_test.html
+

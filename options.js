@@ -4,11 +4,12 @@
   const statusEl = $('status');
   let { chars, active } = await XPET.load();
 
-  // 累计经验（装扮解锁条件）
-  let xpTotal = 0;
+  // 累计陪伴天数（装扮、日记的解锁条件）
+  let xpDays = 0;
+  const daysOf = (rec) => (rec && Number.isFinite(rec.daysTotal) ? rec.daysTotal : rec && rec.settled ? Object.keys(rec.settled).length : 0);
   async function loadXp() {
     const r = await chrome.storage.local.get(XPET.XP_KEY);
-    xpTotal = (r[XPET.XP_KEY] && r[XPET.XP_KEY].total) || 0;
+    xpDays = daysOf(r[XPET.XP_KEY]);
   }
   await loadXp();
 
@@ -152,7 +153,7 @@
     // 头部：头像、名称、按钮
     const avatar = el('div', { className: 'avatar' });
     if (c.img) avatar.appendChild(el('img', { src: c.img, alt: c.name }));
-    else avatar.textContent = c.look === 'teddy' ? '🐶' : c.look === 'cat' ? '🐱' : c.look === 'doge' ? '🐕' : c.look === 'pepe' ? '🐸' : '🟢';
+    else avatar.textContent = c.look === 'teddy' ? '🐶' : c.look === 'cat' ? '🐱' : c.look === 'doge' ? '🐕' : c.look === 'pepe' ? '🐸' : c.look === 'chabit' ? '🧸' : '🟢';
 
     const nameInput = el('input', { className: 'name', type: 'text', value: c.name, maxLength: 20, placeholder: '角色名称' });
     nameInput.addEventListener('input', () => { c.name = nameInput.value.trim() || '未命名'; saveSoon(); });
@@ -197,30 +198,32 @@
     const lookRow = el('div', { className: 'acc-row' });
     lookRow.appendChild(el('span', { textContent: '内置形象：' }));
     const lookSel = el('select');
-    [['teddy', '🐶 泰迪犬'], ['cat', '🐱 哈基米'], ['doge', '🐕 柴犬'], ['pepe', '🐸 佩佩'], ['slime', '🟢 小史莱姆']].forEach(([v, t]) => lookSel.appendChild(el('option', { value: v, textContent: t })));
-    lookSel.value = c.look || 'slime';
+    [['chabit', '🧸 小桌宠']].forEach(([v, t]) => lookSel.appendChild(el('option', { value: v, textContent: t })));
+    lookSel.value = c.look || 'chabit';
     lookSel.addEventListener('change', () => { c.look = lookSel.value; render(); saveNow(); });
     lookRow.appendChild(el('span', { className: 'hint', textContent: '　上传了自己的图片后，以图片为准' }));
     lookRow.insertBefore(lookSel, lookRow.lastChild);
     card.appendChild(lookRow);
 
-    // 工位伴侣装备：用累计经验解锁（自动解锁，不需要领取）
-    const accRow = el('div', { className: 'acc-row' });
-    accRow.appendChild(el('span', { textContent: '工位伴侣装备：' }));
-    const sel = el('select');
-    XPET.ACCESSORIES.forEach((a) => {
-      const locked = a.need > xpTotal;
-      sel.appendChild(el('option', {
-        value: a.id,
-        disabled: locked,
-        textContent: `${a.icon} ${a.name}`.trim() + (locked ? `（累计 ${a.need} 经验解锁）` : ''),
-      }));
-    });
-    sel.value = c.accessory || 'none';
-    sel.addEventListener('change', () => { c.accessory = sel.value; saveSoon(); });
-    accRow.appendChild(sel);
-    accRow.appendChild(el('span', { className: 'hint', textContent: `　已累计 ${xpTotal} 经验 · 摆在宠物身前桌角` }));
-    card.appendChild(accRow);
+    // 工位伴侣装备：用累计陪伴天数解锁（自动解锁，不需要领取）
+    if (XPET.ACCESSORIES_ENABLED) {
+      const accRow = el('div', { className: 'acc-row' });
+      accRow.appendChild(el('span', { textContent: '工位伴侣装备：' }));
+      const sel = el('select');
+      XPET.ACCESSORIES.forEach((a) => {
+        const locked = a.need > xpDays;
+        sel.appendChild(el('option', {
+          value: a.id,
+          disabled: locked,
+          textContent: `${a.icon} ${a.name}`.trim() + (locked ? `（陪伴满 ${a.need} 天解锁）` : ''),
+        }));
+      });
+      sel.value = c.accessory || 'none';
+      sel.addEventListener('change', () => { c.accessory = sel.value; saveSoon(); });
+      accRow.appendChild(sel);
+      accRow.appendChild(el('span', { className: 'hint', textContent: `　已陪伴 ${xpDays} 天 · 摆在宠物身前桌角` }));
+      card.appendChild(accRow);
+    }
 
     const sizeRow = el('div', { className: 'acc-row' });
     sizeRow.appendChild(el('span', { textContent: '显示大小：' }));
@@ -265,7 +268,7 @@
 
   document.getElementById('add').addEventListener('click', () => {
     const id = 'c' + Date.now().toString(36);
-    chars.push({ id, name: '新角色', img: null, look: 'teddy', accessory: 'none', phrases: XPET.defaultPhrases() });
+    chars.push({ id, name: '新角色', img: null, look: 'chabit', accessory: 'none', size: XPET.DEFAULT_SIZE, phrases: XPET.defaultPhrases() });
     render();
     saveNow();
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
@@ -280,7 +283,6 @@
   const aiPresetPills = $('ai-preset-pills');
   const aiLookSel = $('ai-look-sel');
   const aiNameInput = $('ai-name-input');
-  const aiCallInput = $('ai-call-input');
   const aiIncludeSlots = $('ai-include-slots');
   const aiPersonaInput = $('ai-persona-input');
   const aiCustomInput = $('ai-custom-input');
@@ -299,7 +301,6 @@
     const prompt = XPET.AI.buildPrompt({
       look: aiLookSel.value,
       name: aiNameInput.value,
-      callUser: aiCallInput.value,
       persona: aiPersonaInput.value,
       custom: aiCustomInput.value,
       includeSlots: aiIncludeSlots.checked,
@@ -311,7 +312,6 @@
     activePresetId = p.id;
     aiLookSel.value = p.look;
     aiNameInput.value = p.charName;
-    aiCallInput.value = p.callUser;
     aiPersonaInput.value = p.persona;
     aiCustomInput.value = p.custom;
     renderPresets();
@@ -348,7 +348,7 @@
     if (targetCharId && chars.some((c) => c.id === targetCharId)) {
       aiTargetSel.value = targetCharId;
       const targetChar = chars.find((c) => c.id === targetCharId);
-      aiLookSel.value = targetChar.look || 'pepe';
+      aiLookSel.value = targetChar.look || 'chabit';
       aiNameInput.value = targetChar.name || '';
       activePresetId = null;
     } else {
@@ -396,7 +396,7 @@
     });
   }
 
-  [aiLookSel, aiNameInput, aiCallInput, aiIncludeSlots, aiPersonaInput, aiCustomInput].forEach((elem) => {
+  [aiLookSel, aiNameInput, aiIncludeSlots, aiPersonaInput, aiCustomInput].forEach((elem) => {
     if (elem) elem.addEventListener('input', updateAiPrompt);
     if (elem && elem.tagName === 'SELECT') elem.addEventListener('change', updateAiPrompt);
   });
@@ -427,7 +427,7 @@
           img: null,
           look: data.look,
           accessory: 'none',
-          size: 1.6,
+          size: XPET.DEFAULT_SIZE,
           sprites: {},
           phrases: data.phrases,
         };
@@ -468,8 +468,9 @@
       render();
       saveNow();
 
+      const filterNote = stats.filteredCount > 0 ? `（已按语气规范自动过滤 ${stats.filteredCount} 句说教/第二人称台词）` : '';
       aiImportMsg.className = 'ai-msg ok';
-      aiImportMsg.textContent = `🎉 成功导入角色「${appliedCharName}」！共导入 ${stats.actionCount} 类动作台词（${stats.lineCount} 条）${slotMsg}。修改已实时保存生效！`;
+      aiImportMsg.textContent = `🎉 成功导入角色「${appliedCharName}」！共导入 ${stats.actionCount} 类动作台词（${stats.lineCount} 条）${slotMsg}${filterNote}。修改已实时保存生效！`;
       aiImportMsg.style.display = 'block';
 
       setTimeout(() => {
@@ -488,28 +489,35 @@
     $('s-chipMode').value = settings.chipMode;
     itemBoxes.forEach((b) => { b.checked = !!settings.chipItems[b.dataset.item]; });
     const r = settings.reminders;
-    $('s-tired').checked = r.tired;
-    $('s-tiredMin').value = r.tiredMinutes;
-    $('s-tiredMin').disabled = !r.tired;
     $('s-night').checked = r.night;
-    $('s-cap').checked = r.cap;
     $('s-nightStart').value = r.nightStart;
     $('s-nightEnd').value = r.nightEnd;
     $('s-nightStart').disabled = $('s-nightEnd').disabled = !r.night;
-    $('s-goalMin').value = settings.goal.minMinutes;
-    $('s-goalMax').value = settings.goal.maxMinutes;
-    $('s-goalGrace').value = settings.goal.graceMinutes;
-    $('s-goalBase').value = settings.goal.baseXp || 10;
-    renderGoalSummary();
+    $('p-rhythm').value = settings.profile.rhythm;
+    $('p-talk').value = settings.profile.talk;
+    $('p-voice').value = settings.profile.voice;
     const sites = settings.sites || {};
     $('site-x').checked = sites.x !== false;
     $('site-binance').checked = sites.binance !== false;
     $('site-okx').checked = sites.okx !== false;
+    // 背景场景 UI 初始化与同步
+    const sc = settings.scene || { mode: 'off', id: 'rain' };
+    $('s-sceneMode').value = sc.mode || 'off';
+    const sceneRow = $('s-sceneManualRow');
+    if (sceneRow) sceneRow.style.display = sc.mode === 'manual' ? 'flex' : 'none';
+    const sceneSel = $('s-sceneId');
+    if (sceneSel && sceneSel.options.length === 0) {
+      XPET.SCENES.forEach((s) => {
+        sceneSel.appendChild(el('option', { value: s.id, textContent: `${s.label} (${s.id})` }));
+      });
+    }
+    if (sceneSel) sceneSel.value = sc.id || 'rain';
+
     const ap = settings.appearance || {};
     $('s-opacity').value = ap.opacity !== undefined ? ap.opacity : 100;
     $('s-opacityVal').textContent = (ap.opacity !== undefined ? ap.opacity : 100) + '%';
     $('s-bubbleTime').value = String(ap.bubbleTime || 2500);
-    $('s-sound').checked = ap.sound !== false;
+    $('s-sound').checked = !!ap.sound;
     $('s-hotkey').checked = ap.hotkey !== false;
     $('s-greet').checked = settings.greeting.enabled;
     renderSlots();
@@ -522,7 +530,7 @@
     renderHolidays();
   }
   async function saveSettingsNow() {
-    try { await XPET.saveSettings(settings); showStatus('已保存', true); try { renderCalendar(); renderGoalSummary(); } catch (_) {} }
+    try { await XPET.saveSettings(settings); showStatus('已保存', true); try { renderCalendar(); } catch (_) {} }
     catch (e) { showStatus('保存失败，请稍后重试', false); }
   }
   const bindCheck = (id, fn) => $(id).addEventListener('change', (e) => { fn(e.target.checked); syncSettingsUI(); saveSettingsNow(); });
@@ -535,6 +543,20 @@
   bindCheck('site-x', (v) => { settings.sites = settings.sites || {}; settings.sites.x = v; });
   bindCheck('site-binance', (v) => { settings.sites = settings.sites || {}; settings.sites.binance = v; });
   bindCheck('site-okx', (v) => { settings.sites = settings.sites || {}; settings.sites.okx = v; });
+
+  // 背景场景事件绑定
+  $('s-sceneMode').addEventListener('change', (e) => {
+    settings.scene = settings.scene || {};
+    settings.scene.mode = e.target.value;
+    syncSettingsUI();
+    saveSettingsNow();
+  });
+  $('s-sceneId').addEventListener('change', (e) => {
+    settings.scene = settings.scene || {};
+    settings.scene.id = e.target.value;
+    saveSettingsNow();
+  });
+
   $('s-chipMode').addEventListener('change', (e) => { settings.chipMode = e.target.value; saveSettingsNow(); });
   itemBoxes.forEach((b) => b.addEventListener('change', () => { settings.chipItems[b.dataset.item] = b.checked; saveSettingsNow(); }));
   $('s-opacity').addEventListener('input', (e) => {
@@ -552,9 +574,6 @@
   });
   bindCheck('s-sound', (v) => { settings.appearance = settings.appearance || {}; settings.appearance.sound = v; });
   bindCheck('s-hotkey', (v) => { settings.appearance = settings.appearance || {}; settings.appearance.hotkey = v; });
-  bindCheck('s-tired', (v) => { settings.reminders.tired = v; });
-  bindNum('s-tiredMin', 5, 720, () => settings.reminders.tiredMinutes, (v) => { settings.reminders.tiredMinutes = v; });
-  bindCheck('s-cap', (v) => { settings.reminders.cap = v; });
   bindCheck('s-night', (v) => { settings.reminders.night = v; });
   bindNum('s-nightStart', 0, 23, () => settings.reminders.nightStart, (v) => { settings.reminders.nightStart = v; });
   bindNum('s-nightEnd', 0, 23, () => settings.reminders.nightEnd, (v) => { settings.reminders.nightEnd = v; });
@@ -563,10 +582,27 @@
   bindCheck('s-milestone', (v) => { settings.milestone = v; });
   bindCheck('s-stories', (v) => { settings.stories.enabled = v; });
   bindCheck('s-holiday', (v) => { settings.holidays.enabled = v; });
-  bindNum('s-goalMin', 0, 1440, () => settings.goal.minMinutes, (v) => { settings.goal.minMinutes = v; });
-  bindNum('s-goalMax', 0, 1440, () => settings.goal.maxMinutes, (v) => { settings.goal.maxMinutes = v; });
-  bindNum('s-goalGrace', 1, 1440, () => settings.goal.graceMinutes, (v) => { settings.goal.graceMinutes = v; });
-  bindNum('s-goalBase', 1, 1000, () => settings.goal.baseXp, (v) => { settings.goal.baseXp = v; });
+  // 画像：作息和话多话少选完立刻生效；语气要点按钮才会套到当前角色（会覆盖该角色里对应的几组台词）
+  const RHYTHM_WINDOW = { owl: [3, 6], normal: [1, 5], early: [23, 5] };
+  $('p-rhythm').addEventListener('change', (e) => {
+    settings.profile.rhythm = e.target.value;
+    const w = RHYTHM_WINDOW[e.target.value];
+    if (w) { settings.reminders.nightStart = w[0]; settings.reminders.nightEnd = w[1]; }
+    syncSettingsUI();
+    saveSettingsNow();
+  });
+  $('p-talk').addEventListener('change', (e) => { settings.profile.talk = e.target.value; saveSettingsNow(); });
+  $('p-voice').addEventListener('change', (e) => { settings.profile.voice = e.target.value; saveSettingsNow(); });
+  $('p-apply').addEventListener('click', () => {
+    const c = chars.find((x) => x.id === active) || chars[0];
+    if (!c) return;
+    const vn = $('p-voice').selectedOptions[0].textContent;
+    if (!confirm(`把「${vn}」语气套到角色「${c.name}」吗？会覆盖该角色里点击、发文、点赞、收藏、转发、关注、深夜、回来这几组台词（其他台词不动）。`)) return;
+    XPET.applyVoice(c, settings.profile.voice);
+    render();
+    saveNow();
+    $('p-msg').textContent = `已套用到「${c.name}」。`;
+  });
   // ---------- 时段问候 ----------
   function renderSlots() {
     const box = $('greet-slots');
@@ -658,42 +694,28 @@
     renderHolidays();
   });
 
-  // ---------- 宠物的小本子：已解锁的显示全文，没解锁的只显示还差多少经验 ----------
+  // ---------- 宠物的日记：已解锁的显示全文，没解锁的只显示还差几天 ----------
   function renderBook(rec) {
-    rec = rec || {};
-    const settled = rec.settled || {};
-    const days = Number.isFinite(rec.daysTotal) ? rec.daysTotal : Object.keys(settled).length;
-    const full = Object.values(settled).filter((s) => s && s.xp >= settings.goal.baseXp).length; // 停在自己设的范围里（拿到满额经验）的天数
-    const total = xpTotal;
-    const fill = (t) => t.replace(/\{days\}/g, days).replace(/\{full\}/g, full).replace(/\{total\}/g, total);
-    const open = XPET.STORIES.filter((s) => s.need <= total).length;
-    $('book-sum').textContent = `宠物的小本子（已写 ${open} / ${XPET.STORIES.length} 页）`;
+    const days = daysOf(rec);
+    const fill = (t) => t.replace(/\{days\}/g, days);
+    const open = XPET.STORIES.filter((s) => s.need <= days).length;
+    $('book-sum').textContent = `宠物的日记（已写 ${open} / ${XPET.STORIES.length} 页）`;
     const box = $('book-list');
     box.textContent = '';
     XPET.STORIES.forEach((s, i) => {
-      const item = el('div', { className: 'book-item' + (s.need <= total ? '' : ' locked') });
-      if (s.need <= total) {
+      const item = el('div', { className: 'book-item' + (s.need <= days ? '' : ' locked') });
+      if (s.need <= days) {
         item.appendChild(el('div', { className: 'book-title', textContent: `${i + 1}. ${s.title}` }));
         item.appendChild(el('div', { className: 'book-text', textContent: fill(s.text) }));
       } else {
-        item.appendChild(el('div', { className: 'book-title', textContent: `🔒 第 ${i + 1} 页　再攒 ${s.need - total} 经验解锁` }));
+        item.appendChild(el('div', { className: 'book-title', textContent: `🔒 第 ${i + 1} 页　再陪 ${s.need - days} 天解锁` }));
       }
       box.appendChild(item);
     });
   }
   async function loadBook() { const r = await chrome.storage.local.get(XPET.XP_KEY); renderBook(r[XPET.XP_KEY]); }
 
-  // ---------- 当前区间设定的一句话说明 ----------
-  function renderGoalSummary() {
-    const { minMinutes: lo, maxMinutes: hi, graceMinutes: g, baseXp: b } = settings.goal;
-    const range = lo > 0 && hi > 0 ? `${lo}–${hi} 分钟` : lo > 0 ? `${lo} 分钟以上` : hi > 0 ? `不超过 ${hi} 分钟` : '任意时长';
-    let t = `当前设定：每天在线 ${range}，得满额 ${b} 经验`;
-    if (lo > 0) t += `；不足 ${lo} 分钟按比例给`;
-    if (hi > 0) t += `；超过 ${hi} 分钟后逐渐减少，多 ${g} 分钟降为 0`;
-    document.getElementById('goal-sum').textContent = t + '。';
-  }
-
-  // ---------- 日历：每天的在线时长，颜色表示和你设的区间的关系（没有惩罚色） ----------
+  // ---------- 日历：每天的在线时长，有记录的日子上色（不和任何区间比较，没有对错） ----------
   const calEl = document.getElementById('cal');
   let calView = (() => { const n = new Date(); return { y: n.getFullYear(), m: n.getMonth() }; })();
   let calSel = null;
@@ -707,11 +729,7 @@
     return s ? s.min || 0 : 0;
   }
   function dayState(mins) {
-    const lo = settings.goal.minMinutes, hi = settings.goal.maxMinutes;
-    if (mins <= 0) return '';
-    if (hi > 0 && mins > hi) return 'over';
-    if (lo > 0 && mins < lo) return 'under';
-    return 'in';
+    return mins > 0 ? 'in' : '';
   }
   function renderCalendar(h, settled) {
     if (h) calData = { h, settled: settled || {} };
@@ -736,7 +754,7 @@
     }
     if (calSel) showCalDetail(calSel);
     // 本月合计
-    const sum = { post: 0, like: 0, bookmark: 0, repost: 0, follow: 0, scroll: 0, mins: 0, xp: 0, days: 0, inRange: 0 };
+    const sum = { post: 0, like: 0, bookmark: 0, repost: 0, follow: 0, scroll: 0, mins: 0, days: 0 };
     const siteMins = { x: 0, binance: 0, okx: 0 };
     const siteAgg = { x: {}, binance: {}, okx: {} };
     for (let d = 1; d <= days; d++) {
@@ -752,8 +770,7 @@
           });
         }
       }
-      if (sx) sum.xp += sx.xp || 0;
-      if (mins > 0) { sum.days++; sum.mins += mins; if (dayState(mins) === 'in') sum.inRange++; }
+      if (mins > 0) { sum.days++; sum.mins += mins; }
     }
     const siteLabels = (XPET && XPET.SITE_NAMES) || { x: '𝕏 推特', binance: '🟡 币安广场', okx: '🔵 OK星球' };
     const monthBox = document.getElementById('cal-month');
@@ -762,10 +779,10 @@
       monthBox.textContent = '本月还没有记录';
     } else {
       const cell = (k, v) => el('div', { className: 'stat-cell' }, [el('b', { textContent: String(v) }), el('span', { textContent: k })]);
-      monthBox.appendChild(el('div', { className: 'stat-head', textContent: `本月合计 · ${sum.days} 天有记录，${sum.inRange} 天在区间内` }));
+      monthBox.appendChild(el('div', { className: 'stat-head', textContent: `本月合计 · ${sum.days} 天有记录` }));
       monthBox.appendChild(el('div', { className: 'stat-grid' }, [
         cell('在线', XPET.fmtDur(sum.mins)), cell('日均', XPET.fmtDur(sum.mins / sum.days)),
-        cell('滚动', '约 ' + XPET.fmtScroll(sum.scroll)), cell('经验', '+' + sum.xp),
+        cell('滚动', '约 ' + XPET.fmtScroll(sum.scroll)), cell('一起', xpDays + ' 天'),
         cell('发文/回复', sum.post), cell('点赞', sum.like), cell('收藏', sum.bookmark),
         cell('转发/引用', sum.repost), cell('关注', sum.follow),
       ]));
@@ -781,12 +798,8 @@
         ]));
       });
     }
-    const lo = settings.goal.minMinutes, hi = settings.goal.maxMinutes;
-    const rng = hi > 0 ? `${lo}–${hi} 分钟` : lo > 0 ? `${lo} 分钟以上` : '不限';
     document.getElementById('cal-legend').innerHTML =
-      `<span><i style="background:color-mix(in srgb,var(--accent) 38%,var(--card))"></i>在你设的区间内（${rng}）</span>`
-      + (lo > 0 ? '<span><i style="background:color-mix(in srgb,var(--accent) 14%,var(--card))"></i>还没到下限</span>' : '')
-      + (hi > 0 ? '<span><i style="background:color-mix(in srgb,#c9a227 26%,var(--card))"></i>超出上限</span>' : '');
+      '<span><i style="background:color-mix(in srgb,var(--accent) 38%,var(--card))"></i>这天有陪伴记录</span>';
   }
   function showCalDetail(k) {
     const d = calData.h[k], s = calData.settled[k];
@@ -800,9 +813,7 @@
       if (did.length) parts.push(did.join(' · '));
       if (d.scroll) parts.push(`滚动约 ${XPET.fmtScroll(d.scroll)}`);
     }
-    parts.push(s ? `经验 +${s.xp}` : '经验次日结算');
-
-    // 双层统计：分站明细展示
+    // 分站明细
     const siteLines = [];
     const bs = d && d.bySite;
     if (bs) {
@@ -855,12 +866,6 @@
       lines.push(`推特页面上脚本版本：${st.version || '未知'}，最近一次加载：${fmtTime(st.loadedAt)}${st.version && st.version !== ver ? '（与当前扩展版本不一致，请刷新 x.com 页面）' : ''}`);
       lines.push(st.lastActionAt ? `最近一次识别到的互动：${st.lastAction}，${fmtTime(st.lastActionAt)}` : '还没有识别到任何点赞/收藏/转发/关注/发推动作');
       if (st.unmatchedTestid) lines.push(`发现可能没被识别的按钮：data-testid="${st.unmatchedTestid}"（${fmtTime(st.unmatchedAt)}）。把这个值发给开发者，说明推特改了写法。`);
-      if (Array.isArray(st.probe) && st.probe.length) {
-        lines.push(`【探针】币安/OKX 最近 ${st.probe.length} 次点击（matched 为空表示没被识别），整段复制发给开发者：`);
-        st.probe.slice().sort((a, b) => a.at - b.at).forEach((p) => lines.push(`${fmtTime(p.at)} ${p.site}${p.path} matched=${p.matched || '无'} ${JSON.stringify(p.chain)}${p.after ? ' after=' + JSON.stringify(p.after) : ''}`));
-      } else {
-        lines.push('【探针】还没有币安/OKX 的点击记录：请在币安广场或 OK星球页面刷新后，点几下点赞/收藏/转发，再回到这里刷新。');
-      }
     }
     diagEl.textContent = '';
     lines.forEach((t) => diagEl.appendChild(el('li', { textContent: t })));
@@ -872,9 +877,16 @@
     if (area !== 'local') return;
     if (changes[XPET.HIST_KEY]) renderHistory();
     if (changes[XPET.HIST_KEY] || changes[XPET.STATUS_KEY]) renderDiag();
+    // 监听 SETTINGS_KEY 变化（如在网页右键菜单切换场景或今天安静），实时同步给 options 内存状态，避免被后续保存冲掉
+    if (changes[XPET.SETTINGS_KEY] && changes[XPET.SETTINGS_KEY].newValue) {
+      const ns = XPET.mergeSettings(changes[XPET.SETTINGS_KEY].newValue);
+      settings.scene = ns.scene;
+      settings.quietUntil = ns.quietUntil;
+      syncSettingsUI();
+    }
   });
   // ---------- 备份：导出 / 导入（扩展换文件夹或重装后数据会丢，先备份） ----------
-  const BACKUP_KEYS = [XPET.KEYS.chars, XPET.KEYS.active, XPET.SEED_KEY, XPET.HIST_KEY, XPET.XP_KEY, XPET.SETTINGS_KEY];
+  const BACKUP_KEYS = [XPET.KEYS.chars, XPET.KEYS.active, XPET.SEED_KEY, XPET.RETIRED_KEY, XPET.HIST_KEY, XPET.XP_KEY, XPET.SETTINGS_KEY];
   document.getElementById('backup-export').addEventListener('click', async () => {
     const all = await chrome.storage.local.get(null);
     const data = {};
@@ -900,10 +912,11 @@
       if (d[XPET.KEYS.chars] !== undefined) { if (!Array.isArray(d[XPET.KEYS.chars])) throw new Error('角色数据格式不对'); out[XPET.KEYS.chars] = d[XPET.KEYS.chars]; }
       if (typeof d[XPET.KEYS.active] === 'string') out[XPET.KEYS.active] = d[XPET.KEYS.active];
       if (Array.isArray(d[XPET.SEED_KEY])) out[XPET.SEED_KEY] = d[XPET.SEED_KEY];
+      if (isObj(d[XPET.RETIRED_KEY])) out[XPET.RETIRED_KEY] = d[XPET.RETIRED_KEY];
       [XPET.HIST_KEY, XPET.XP_KEY, XPET.SETTINGS_KEY].forEach((k) => { if (d[k] !== undefined) { if (!isObj(d[k])) throw new Error('数据格式不对：' + k); out[k] = d[k]; } });
       Object.keys(d).forEach((k) => { if (k.startsWith(XPET.SPRITE_PREFIX) && typeof d[k] === 'string' && d[k].startsWith('data:image/')) out[k] = d[k]; });
       if (!Object.keys(out).length) throw new Error('备份里没有可导入的内容');
-      if (!confirm('导入会覆盖当前的角色、历史统计、经验和设置，确定吗？')) return;
+      if (!confirm('导入会覆盖当前的角色、历史统计、陪伴天数和设置，确定吗？')) return;
       await chrome.storage.local.set(out);
       location.reload();
     } catch (e) {
@@ -917,3 +930,4 @@
     renderHistory();
   });
 })();
+

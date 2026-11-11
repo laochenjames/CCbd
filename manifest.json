@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "CCbd 伴宠",
-  "version": "0.11.0",
-  "description": "一只陪你逛推特、币安广场、OK星球的卡通伴宠，可自定义角色、装扮和台词。",
+  "version": "0.13.0",
+  "description": "一只陪你逛推特、币安广场、OK星球的卡通伴宠，在你发帖、点赞的时候替你说句心里话，可自定义角色和装扮。",
   "permissions": [
     "storage",
     "unlimitedStorage",
@@ -62,7 +62,8 @@
     {
       "resources": [
         "sprites/*",
-        "sprites/*/*"
+        "sprites/*/*",
+        "scenes/*"
       ],
       "matches": [
         "https://x.com/*",

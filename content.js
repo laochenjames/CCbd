@@ -3,9 +3,14 @@
   if (document.getElementById('xpet-root')) return;
 
   const BASE_W = 72, BASE_H = 64, MARGIN = 8;
+  // 手绘背景几何配置（用户根据视觉手调定案）：
+  // 边长按 1.15W 放大并向左上微移（左移 11%W，上移 18%H），使手绘圆形窗景自然衬托在头部与笔记本后方。
+  // 注意：背景圆会超出根框（特大档顶部多出约 63px、左侧约 40px），贴近屏幕边缘时会被裁剪，当前方案已知且保持此设计。
+  const SCENE_SIDE_RATIO = 1.15;
+  const SCENE_DX_RATIO = -0.11; // 往左平移 11% W
+  const SCENE_DY_RATIO = -0.18; // 往上平移 18% H
   let W = BASE_W, H = BASE_H; // 随角色的「显示大小」变化
   const POS_KEY = 'xpetPos';
-  const COUNT_KEY = 'xpetCount';
 
   const SLIME_SVG = `
     <svg viewBox="0 0 100 90" xmlns="http://www.w3.org/2000/svg">
@@ -52,8 +57,10 @@
 
   const root = document.createElement('div');
   root.id = 'xpet-root';
-  root.innerHTML = '<div class="xpet-bubble"></div><div class="xpet-body"></div><div class="xpet-chip"></div>';
+  root.innerHTML = '<div class="xpet-scene" aria-hidden="true"><img draggable="false" decoding="async"></div><div class="xpet-bubble"></div><div class="xpet-body"></div><div class="xpet-chip"></div>';
   document.body.appendChild(root);
+  const sceneEl = root.querySelector('.xpet-scene');
+  const sceneImg = sceneEl ? sceneEl.querySelector('img') : null;
   const bubble = root.querySelector('.xpet-bubble');
   const body = root.querySelector('.xpet-body');
   const chip = root.querySelector('.xpet-chip');
@@ -63,9 +70,10 @@
   let activeId = chars[0].id;
   const activeChar = () => chars.find((c) => c.id === activeId) || chars[0];
 
-  let xpTotal = 0; // 累计经验，决定装扮是否解锁
-  let xpDays = 0; // 累计陪伴天数（有记录的天数，累计不是连续）
-  let storyTitle = ''; // 最近解锁的小本子标题，给「写了新的一页」台词用
+  let xpDays = 0; // 累计陪伴天数（有记录的天数，累计不是连续）；装扮和日记都按它解锁
+  let storyTitle = ''; // 最近解锁的日记标题，给「写了新的一页」台词用
+  // 从「陪伴记录」里读累计天数；老数据没有 daysTotal 字段时，用已结算的天数代替
+  const daysOf = (rec) => (rec && Number.isFinite(rec.daysTotal) ? rec.daysTotal : rec && rec.settled ? Object.keys(rec.settled).length : 0);
 
   // ---------- 工位装备与桌面伴侣道具 SVG ----------
   const GEAR_SVGS = {
@@ -139,21 +147,98 @@
   let lastPoseActive = true, curPoseKey = "busy"; // 刚打开页面算在用，不要一上来就打盹
   function updatePose(active) {
     lastPoseActive = active;
-    let night = false;
-    try { // settings 在脚本稍后才初始化，早期调用时忽略
-      night = !!(settings.reminders.night && XPET.inWindow(new Date().getHours(), settings.reminders.nightStart, settings.reminders.nightEnd));
-    } catch (e) {}
-    curPoseKey = !active ? 'idle' : night ? 'night' : 'busy';
+    curPoseKey = active ? 'busy' : 'idle'; // 深夜不再常驻「打哈欠」循环（整晚循环太吵）：哈欠只在 maybeYawn 里偶尔演一次
     applySprite();
   }
 
+  // 深夜窗口内：每隔 YAWN_EVERY_MS 最多打一次哈欠（只演一遍动画，不说话）。与「深夜台词」共用计时，不会前后脚连着演。「今天安静」只保留动画，所以不受它影响
+  let lastYawnAt = 0;
+  const YAWN_EVERY_MS = 20 * 60 * 1000;
+  function maybeYawn(now) {
+    if (now - Math.max(lastYawnAt, lastNightAt) < YAWN_EVERY_MS) return;
+    if (now < forceUntil || document.visibilityState !== 'visible' || !petVisible()) return;
+    let ms = 2400; // 小桌宠是静态图（stretching），停 2.4 秒；精灵图角色按动画时长演一遍
+    if (!chabitEl) {
+      const sp = XPET.spriteFor(activeChar(), 'yawn');
+      if (!sp || !sp.meta) return;
+      ms = Math.round((sp.meta.frames / sp.meta.fps) * 1000);
+    }
+    lastYawnAt = now;
+    playState('yawn', ms);
+  }
+
+  // ---------- 小桌宠（分层静态图）：状态整图 + 独立眼睛层，眨眼靠换眼睛层 ----------
+  // 姿态映射沿用原有判断：在用页面→working；停下来→发呆，停久了→睡着；深夜哈欠→伸懒腰；被点击→喝水
+  const CHABIT_STATE = { busy: 'working', sleepy: 'daydreaming', yawn: 'stretching', poke: 'drinking', idle: 'working' };
+  const CHABIT_EYE = { x: 380 / 1024, y: 285 / 1024, w: 255 / 1024, h: 100 / 1024 }; // 与 tools/build_pet_assets.py 的 EYE_BBOX 一致
+  const CHABIT_SLEEP_AFTER_MS = 5 * 60 * 1000; // 发呆满 5 分钟后趴下睡着
+  let chabitEl = null, chabitImg = null, chabitEyeImg = null, chabitState = '', chabitBlinkTimer = null, sleepySince = 0;
+  const chabitUrl = (name) => { try { return chrome.runtime.getURL('sprites/chabit/' + name + '.webp'); } catch (e) { return ''; } };
+  function chabitFatigue() {
+    const h = new Date().getHours();
+    if (h < 5) return 'tired'; // 深夜
+    if (sleepySince && Date.now() - sleepySince > 60 * 1000) return 'half'; // 停下来一阵子
+    return 'normal';
+  }
+  function chabitSetEyes(kind) {
+    if (chabitEyeImg && chabitState === 'working') chabitEyeImg.src = chabitUrl('eye_' + kind);
+  }
+  function chabitScheduleBlink() {
+    clearTimeout(chabitBlinkTimer);
+    chabitBlinkTimer = setTimeout(() => {
+      if (chabitEl && document.visibilityState === 'visible' && chabitState === 'working') {
+        chabitSetEyes('closed');
+        setTimeout(() => chabitSetEyes(chabitFatigue()), 150);
+      }
+      if (chabitEl) chabitScheduleBlink();
+    }, 3000 + Math.random() * 3000);
+  }
+  function stopChabit() {
+    clearTimeout(chabitBlinkTimer);
+    chabitEl = chabitImg = chabitEyeImg = null;
+    chabitState = '';
+  }
+  function buildChabit() {
+    chabitEl = document.createElement('div');
+    chabitEl.className = 'xpet-chabit';
+    chabitImg = document.createElement('img');
+    chabitEyeImg = document.createElement('img');
+    chabitEyeImg.className = 'xpet-chabit-eye';
+    chabitEyeImg.style.cssText = `left:${CHABIT_EYE.x * 100}%;top:${CHABIT_EYE.y * 100}%;width:${CHABIT_EYE.w * 100}%;height:${CHABIT_EYE.h * 100}%`;
+    [chabitImg, chabitEyeImg].forEach((im) => { im.draggable = false; im.alt = ''; });
+    chabitEl.appendChild(chabitImg);
+    chabitEl.appendChild(chabitEyeImg);
+    body.appendChild(chabitEl);
+    // 预加载 9 张图，避免第一次换姿态、第一次眨眼时因为图片还没解码而闪一下空白
+    ['working', 'daydreaming', 'sleeping', 'stretching', 'drinking', 'eye_normal', 'eye_half', 'eye_tired', 'eye_closed'].forEach((n) => { const im = new Image(); im.src = chabitUrl(n); });
+    chabitState = '';
+    chabitScheduleBlink();
+  }
+  function applyChabit() {
+    if (!chabitEl) return;
+    const want = wantedSpriteState();
+    if (want === 'sleepy') { if (!sleepySince) sleepySince = Date.now(); } else sleepySince = 0;
+    let st = CHABIT_STATE[want] || 'working';
+    if (want === 'sleepy' && Date.now() - sleepySince > CHABIT_SLEEP_AFTER_MS) st = 'sleeping';
+    const side = Math.min(W, H * 1.15);
+    chabitEl.style.width = chabitEl.style.height = Math.round(side) + 'px';
+    chabitEl.classList.toggle('xpet-chabit-sleeping', st === 'sleeping');
+    body.classList.add('xpet-has-sprite');
+    if (st !== chabitState) {
+      chabitState = st;
+      chabitImg.src = chabitUrl(st);
+      chabitEyeImg.style.display = st === 'working' ? 'block' : 'none'; // 其他姿态自带表情
+      if (st === 'working') chabitEyeImg.src = chabitUrl('eye_' + chabitFatigue());
+    }
+  }
+  // 发呆转睡着需要时间推进：每 20 秒复查一次；页面隐藏时不跑
+  setInterval(() => { if (chabitEl && document.visibilityState === 'visible') applyChabit(); }, 20000);
   // ---------- 精灵图：按状态播放角色自带的动画；没有对应图片时退回基础图/静态图/内置形象 ----------
   let spriteEl = null, spriteCache = {}, spriteCharId = null, spriteState = null, spriteToken = 0, forceState = '', forceUntil = 0, forceTimer = null;
   const SPRITE_FALLBACK = { poke: ['poke', 'busy', 'idle'], busy: ['busy', 'idle'], sleepy: ['sleepy', 'idle'], yawn: ['yawn', 'sleepy', 'idle'], idle: ['idle'] };
   function wantedSpriteState() {
     if (Date.now() < forceUntil) return forceState;
     if (curPoseKey === 'idle') return 'sleepy';
-    if (curPoseKey === 'night') return 'yawn';
     return 'busy';
   }
   function playState(state, ms) {
@@ -165,6 +250,7 @@
   }
   function applySprite() {
     if (!spriteEl) return;
+    if (chabitEl) { applyChabit(); return; }
     const c = activeChar();
     const want = wantedSpriteState();
     const use = SPRITE_FALLBACK[want].find((st) => XPET.spriteFor(c, st));
@@ -217,6 +303,13 @@
     root.style.width = W + 'px';
     root.style.height = H + 'px';
     root.style.setProperty('--xs', String(s));
+    if (sceneEl) {
+      const side = Math.round(SCENE_SIDE_RATIO * W);
+      sceneEl.style.width = side + 'px';
+      sceneEl.style.height = side + 'px';
+      sceneEl.style.left = Math.round((W - side) / 2 + SCENE_DX_RATIO * W) + 'px';
+      sceneEl.style.top = Math.round((H - side) / 2 + SCENE_DY_RATIO * H) + 'px';
+    }
     try { const r = root.getBoundingClientRect(); place(r.left, r.top); } catch (e) {}
   }
 
@@ -238,6 +331,8 @@
     spriteEl.style.display = 'none';
     body.appendChild(spriteEl);
     spriteState = null;
+    stopChabit();
+    if (!c.img && c.look === 'chabit') buildChabit();
     applySize();
     updatePose(lastPoseActive);
     renderGear();
@@ -247,9 +342,10 @@
   let gearEl = null;
   function renderGear() {
     if (gearEl) { gearEl.remove(); gearEl = null; }
+    if (!XPET.ACCESSORIES_ENABLED) return; // 软关闭：上线背景后停用矢量小物
     const c = activeChar();
     const acc = XPET.ACCESSORIES.find((a) => a.id === c.accessory);
-    if (!acc || acc.id === 'none' || acc.need > xpTotal) return;
+    if (!acc || acc.id === 'none' || acc.need > xpDays) return;
     const svg = GEAR_SVGS[acc.id];
     if (!svg) return;
     gearEl = document.createElement('div');
@@ -280,15 +376,18 @@
       // 其他标签页写入了今天的统计：同步到本页，否则三个站分开开着时，切回来看到的是旧数字（统计条、今日小结、上限提醒都用它）
       if (changes[XPET.HIST_KEY]) syncCountsFrom(changes[XPET.HIST_KEY].newValue);
       if (changes[XPET.XP_KEY]) {
-        xpTotal = (changes[XPET.XP_KEY].newValue && changes[XPET.XP_KEY].newValue.total) || 0;
-        xpDays = (changes[XPET.XP_KEY].newValue && changes[XPET.XP_KEY].newValue.daysTotal) || 0;
+        xpDays = daysOf(changes[XPET.XP_KEY].newValue);
         renderChar();
       }
     });
   } catch (e) {}
 
-  // ---------- 位置 ----------
+  // ---------- 位置（按站点独立记忆，旧版全局 xpetPos 作为初始回退） ----------
   const extraBottom = 26; // 给统计条在宠物下方留出空间，避免被屏幕边缘挡住
+  const posKeyForSite = () => {
+    const sk = XPET.siteKeyOf(location.hostname);
+    return sk !== 'other' ? `${POS_KEY}:${sk}` : POS_KEY;
+  };
   const clamp = (x, y) => ({
     x: Math.min(Math.max(MARGIN, x), window.innerWidth - W - MARGIN),
     y: Math.min(Math.max(MARGIN, y), window.innerHeight - H - MARGIN - extraBottom),
@@ -300,13 +399,14 @@
     return p;
   };
   const savePos = (p) => {
-    try { chrome.storage.local.set({ [POS_KEY]: p }); } catch (e) {}
+    try { chrome.storage.local.set({ [posKeyForSite()]: p, [POS_KEY]: p }); } catch (e) {}
   };
 
   place(window.innerWidth - W - 24, window.innerHeight - H - 24);
   try {
-    chrome.storage.local.get(POS_KEY, (res) => {
-      const p = res && res[POS_KEY];
+    const skey = posKeyForSite();
+    chrome.storage.local.get([skey, POS_KEY], (res) => {
+      const p = (res && res[skey]) || (res && res[POS_KEY]);
       if (p && typeof p.x === 'number') place(p.x, p.y);
     });
   } catch (e) {}
@@ -348,73 +448,104 @@
     chipTimer = setTimeout(refreshChip, ms + 50);
   }
   // ---------- 站点检测与单页应用 (SPA) 路由支持 ----------
+  // 严格只看网址（hostname + pathname），不读取页面标题或任何内容；金融操作页面与 X 私信/设置页一律不生效
   function checkSiteAllowed(curSettings) {
-    const host = location.hostname.toLowerCase();
-    const path = location.pathname.toLowerCase();
     const sites = (curSettings && curSettings.sites) || { x: true, binance: true, okx: true };
-
-    if (host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')) {
-      return sites.x !== false;
-    }
-    if (host.includes('binance.com')) {
-      if (sites.binance === false) return false;
-      // 仅在币安广场页面生效（/square, /feed）
-      return path.includes('/square') || path.includes('/feed');
-    }
-    if (host.includes('okx.') || host.includes('ouyi.')) {
-      if (sites.okx === false) return false;
-      // OK星球官方为 Orbit，兼容 square、community、feed、social、insights、post 及页面标题带"星球"或"Orbit"
-      const full = (location.href + ' ' + (document.title || '')).toLowerCase();
-      return full.includes('/orbit') || full.includes('/square') ||
-             full.includes('/community') || full.includes('/feed') ||
-             full.includes('/social') || full.includes('/insights') ||
-             full.includes('/discover') || full.includes('/post') ||
-             full.includes('/article') || full.includes('星球') || full.includes('orbit');
-    }
-    return false;
+    return XPET.siteAllowed(location.hostname, location.pathname, sites);
   }
 
   // 获取当前页面所属站点标识 ('x' | 'binance' | 'okx' | 'other')
   function currentSiteKey() {
-    const host = location.hostname.toLowerCase();
-    if (host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')) {
-      return 'x';
-    }
-    if (host.includes('binance.com')) {
-      return 'binance';
-    }
-    if (host.includes('okx.') || host.includes('ouyi.')) {
-      return 'okx';
-    }
-    return 'other';
+    return XPET.siteKeyOf(location.hostname);
   }
 
   let isHiddenByHotkey = false;
   let allowedNow = true; // 当前页面是否属于生效页面；mousemove/scroll 这类高频事件只读这个缓存，不再每次重新拼字符串判断
+  // 判断当前焦点是否在输入框或可编辑区域内（打字时静音，但发文 post 台词除外）
+  function isTyping() {
+    const a = document.activeElement;
+    if (!a || a === document.body) return false;
+    const tag = (a.tagName || '').toLowerCase();
+    if (tag === 'textarea') return true;
+    if (tag === 'input') {
+      const t = (a.type || 'text').toLowerCase();
+      return !['button', 'checkbox', 'radio', 'range', 'submit', 'reset', 'file', 'image', 'color', 'hidden'].includes(t);
+    }
+    if (a.isContentEditable) return true;
+    if (a.getAttribute && a.getAttribute('role') === 'textbox') return true;
+    return false;
+  }
+  const isQuietToday = () => !!(settings.quietUntil && Date.now() < settings.quietUntil);
+  // 宠物现在是否在屏幕上看得见；只有看得见、标签页也在前台、未开启「今天安静」、且未在输入框打字时才主动说话（allowWhileTyping 为 true 时豁免打字检查，用于 Ctrl+Enter 发文）
+  const petVisible = () => allowedNow && !isHiddenByHotkey;
+  const canSpeak = (allowWhileTyping) => petVisible() && document.visibilityState === 'visible' && !isQuietToday() && (allowWhileTyping || !isTyping());
   function updateSiteVisibility() {
     allowedNow = checkSiteAllowed(settings);
     root.style.display = (allowedNow && !isHiddenByHotkey) ? '' : 'none';
   }
 
-  // 监听 SPA 路由切换（如在币安或OKX从其他页面进入广场）
-  // OKX 的判断还用到页面标题，所以标题变化也要重新判断
-  let lastCheckedSig = location.href + '|' + document.title;
+  // 监听 SPA 路由切换（如在币安或OKX从其他页面进入广场）：只检查 location.href，不读取页面标题或内容
+  let lastCheckedHref = location.href;
   setInterval(() => {
-    const sig = location.href + '|' + document.title;
-    if (sig !== lastCheckedSig) {
-      lastCheckedSig = sig;
+    const href = location.href;
+    if (href !== lastCheckedHref) {
+      lastCheckedHref = href;
       updateSiteVisibility();
     }
   }, 500);
   window.addEventListener('popstate', updateSiteVisibility);
   updateSiteVisibility(); // 启动时立即执行一次可见性校验
 
+  // ---------- 背景场景渲染与时段同步 ----------
+  let curSceneId = null;
+  let sceneToken = 0;
+  function applyScene() {
+    if (!sceneEl || !sceneImg) return;
+    const targetId = XPET.sceneFor(new Date().getHours(), settings.scene);
+    if (targetId === curSceneId) return;
+    const hadScene = !!curSceneId;
+    curSceneId = targetId;
+    const token = ++sceneToken;
+
+    // 清理之前的 scene class，色调滤镜随目标场景立即切换（CSS 有 0.4s 渐变）
+    Array.from(root.classList).forEach((cls) => {
+      if (cls.startsWith('xpet-scene-')) root.classList.remove(cls);
+    });
+    sceneEl.classList.remove('xpet-scene-active'); // 先淡出旧背景
+
+    // 关闭场景分支：等待淡出完成（260ms）后彻底移除 src 属性
+    if (!targetId) {
+      setTimeout(() => {
+        if (token === sceneToken) sceneImg.removeAttribute('src');
+      }, 260);
+      return;
+    }
+
+    root.classList.add(`xpet-scene-${targetId}`);
+    const def = XPET.SCENES.find((s) => s.id === targetId);
+    if (!def) return;
+    const sceneUrl = chrome.runtime.getURL(`scenes/${def.file}`);
+
+    // 先预加载图片，解码就绪后再进行淡入展示，防白闪和未解码造成的跳变
+    const preloader = new Image();
+    const show = () => {
+      setTimeout(() => {
+        if (token !== sceneToken) return;
+        sceneImg.src = sceneUrl;
+        sceneEl.classList.add('xpet-scene-active');
+      }, hadScene ? 260 : 0);
+    };
+    preloader.onload = show;
+    preloader.onerror = () => {}; // 资源不存在或损坏则静默保持无背景
+    preloader.src = sceneUrl;
+  }
+
   function applySettings() {
-    tiredBaseline = null; // 提醒间隔改了，重新以当前时长为起点，避免立刻补发提醒
     const op = (settings.appearance && settings.appearance.opacity !== undefined) ? settings.appearance.opacity / 100 : 1;
     root.style.setProperty('--xpet-opacity', String(op));
     updateSiteVisibility();
     refreshChip();
+    applyScene();
   }
   async function reloadSettings() {
     try {
@@ -427,14 +558,37 @@
   }
 
   // ---------- 说话 ----------
-  let bubbleTimer = null;
-  function say(text, ms) {
+  // 同一时刻只说一句：优先级低的话不会打断还在显示的高优先级的话，直接丢弃（notice 通知走队列重试，不会丢）。
+  // user(4) = 用户主动点击宠物；act(3) = 发文/转发/关注/深夜；notice(2) = 问候/纪念/日记/新东西/回来；soft(1) = 点赞/收藏
+  const PRIO = { user: 4, act: 3, notice: 2, soft: 1 };
+  let bubbleTimer = null, bubblePrio = 0, bubbleUntil = 0;
+  function fitBubble() {
+    bubble.style.marginLeft = '0px';
+    bubble.classList.remove('xpet-bubble-below');
+    try {
+      const r = bubble.getBoundingClientRect();
+      if (!r.width) return;
+      let dx = 0;
+      if (r.right > window.innerWidth - MARGIN) dx = (window.innerWidth - MARGIN) - r.right;
+      if (r.left + dx < MARGIN) dx = MARGIN - r.left;
+      if (dx) bubble.style.marginLeft = Math.round(dx) + 'px';
+      if (r.top < MARGIN) bubble.classList.add('xpet-bubble-below');
+    } catch (e) {}
+  }
+  function say(text, ms, prio) {
+    prio = prio || PRIO.act;
+    const now = Date.now();
+    if (now < bubbleUntil && prio < bubblePrio) return false;
     const base = (settings.appearance && settings.appearance.bubbleTime) || 2500;
     const dur = ms ? Math.round(ms * (base / 2500)) : base;
     bubble.textContent = text; // 用 textContent，用户自定义台词不会被当成 HTML
+    fitBubble();
     bubble.classList.add('xpet-show');
     clearTimeout(bubbleTimer);
     bubbleTimer = setTimeout(() => bubble.classList.remove('xpet-show'), dur);
+    bubblePrio = prio;
+    bubbleUntil = now + dur;
+    return true;
   }
 
   // 取一句台词（带占位符替换）；没有台词返回空字符串
@@ -446,24 +600,71 @@
     return raw
       .replace(/\{n\}/g, String(counts[type] || 0))
       .replace(/\{min\}/g, String(Math.floor(totalSeconds() / 60)))
-      .replace(/\{left\}/g, String(Math.max(0, settings.goal.maxMinutes - Math.floor(totalSeconds() / 60))))
       .replace(/\{name\}/g, unlockName)
       .replace(/\{days\}/g, String(xpDays))
       .replace(/\{title\}/g, storyTitle)
-      .replace(/\{when\}/g, settleInfo.when)
-      .replace(/\{gain\}/g, String(settleInfo.gain))
-      .replace(/\{total\}/g, String(xpTotal))
-      .replace(/\{nextHint\}/g, nextHint())
-      .replace(/\{xp\}/g, String(todayXp()))
-      .replace(/\{stats\}/g, statsText());
+      .replace(/\{stats\}/g, statsText())
+      .replace(/\{(left|xp|gain|total|when|nextHint)\}/g, ''); // 旧版自定义台词里的经验、上限类占位符已不再支持，直接去掉
   }
-  // 提醒时配上身体动作：说话的同时狗有反应（没有对应动画的角色不受影响）
-  const SPEAK_ANIM = { tired: ['yawn', 2400], night: ['yawn', 2400], atCap: ['sleepy', 3000], unlock: ['poke', 2400] };
-  function speak(type, quiet) {
+  // 说话的同时配上身体动作（没有对应动画的角色不受影响）
+  const SPEAK_ANIM = { night: ['yawn', 2400], unlock: ['poke', 2400] };
+  function speak(type, quiet, prio) {
     const t = lineFor(type);
-    if (t) say(t, type === 'settled' || type === 'settledZero' ? 4200 : 2200);
-    if (!quiet && SPEAK_ANIM[type]) playState(SPEAK_ANIM[type][0], SPEAK_ANIM[type][1]);
+    if (!t) return false;
+    const ok = say(t, 2200, prio);
+    if (ok && !quiet && SPEAK_ANIM[type]) playState(SPEAK_ANIM[type][0], SPEAK_ANIM[type][1]);
+    return ok;
   }
+
+  // 行为触发的话不是每次都说：p = 说话概率，cd = 同类冷却（毫秒）。
+  // 发文必说（且豁免输入框焦点静音检查，避免 Ctrl+Enter 发文时被吞）；其他行为共用一个 6 秒的间隔，连着点几下只说一句。
+  const SPEAK_RULE = {
+    post: { p: 1, cd: 0, prio: PRIO.act },
+    repost: { p: 0.8, cd: 20000, prio: PRIO.act },
+    follow: { p: 0.6, cd: 30000, prio: PRIO.act },
+    bookmark: { p: 0.3, cd: 60000, prio: PRIO.soft },
+    like: { p: 0.12, cd: 90000, prio: PRIO.soft },
+  };
+  const TALK_MUL = { quiet: 0.5, normal: 1, chatty: 1.6 };
+  const lastSpokeAt = {};
+  let lastActSpoke = 0;
+  function reactTo(type) {
+    const r = SPEAK_RULE[type];
+    if (!r || !canSpeak(type === 'post')) return false;
+    const mul = TALK_MUL[settings.profile && settings.profile.talk] || 1;
+    const now = Date.now();
+    if (type !== 'post' && now - lastActSpoke < 6000 / mul) return false;
+    if (r.cd && now - (lastSpokeAt[type] || 0) < r.cd / mul) return false;
+    if (Math.random() > Math.min(1, r.p * mul)) return false;
+    if (!speak(type, false, r.prio)) return false;
+    lastSpokeAt[type] = now;
+    lastActSpoke = now;
+    return true;
+  }
+
+  // 通知（问候、纪念、日记、新东西、回来）排队依次说。队列逻辑在 shared.js 的 XPET.createAnnouncer（有自动化测试 tools/test_announcer.js），
+  // 这里只负责「怎么说」。队列的约定：
+  // 1. 「显示成功后再写已通知（ack）」：只有气泡真正展示出来（或用户清空了该类台词无需展示）时才调用 item.ack() 写入存储；
+  //    页面刷新/关闭、开启「今天安静」、或连续冲突放弃时，一次性通知都不会被白白消耗，下次符合条件时仍会触发。
+  // 2. 时效性通知（问候、回来）带 expiresAt（5 分钟过期），避免早上入队的问候拖到晚上才冒出来；里程碑、解锁、日记无过期。
+  // 3. 触发时 !canSpeak() 则 1.5 秒后重试；因高优先级气泡正在显示导致 say() 返回 false，则放回队首最多重试 5 次。
+  const announcer = XPET.createAnnouncer({
+    now: () => Date.now(),
+    setTimer: (fn, ms) => setTimeout(fn, ms),
+    canSpeak: () => canSpeak(),
+    bubbleUntil: () => bubbleUntil,
+    show: (item) => {
+      if (item.prepare) item.prepare();
+      if (item.type) {
+        if (!lineFor(item.type)) return true; // 该动作台词被用户设为空，视同无需展示并直接确认
+        return speak(item.type, false, PRIO.notice);
+      }
+      if (item.text) return say(item.text, 3000, PRIO.notice);
+      return true;
+    },
+  });
+  const enqueueAnnounce = (item) => announcer.enqueue(item);
+  const pumpAnnounce = (delayMs) => announcer.pump(delayMs);
 
   function restartClass(cls) {
     root.classList.remove('xpet-jump', 'xpet-nudge');
@@ -475,16 +676,14 @@
     if (e.animationName === 'xpet-nudge') root.classList.remove('xpet-nudge');
   });
 
-  // 点一下宠物：不让用户选，按当前状态直接说（深夜 > 到上限 > 接近上限 > 刚开始 > 平时）
+  // 点一下宠物：深夜说深夜的话；今天刚开始说刚开始的；平时说「我也在……」，优先用当前站点的那组
   function clickType() {
-    const r = settings.reminders, hi = settings.goal.maxMinutes;
-    const mins = Math.floor(totalSeconds() / 60);
+    const r = settings.reminders;
     if (r.night && XPET.inWindow(new Date().getHours(), r.nightStart, r.nightEnd)) return 'night';
-    if (r.cap && hi > 0) {
-      if (mins >= hi) return todayXp() >= settings.goal.baseXp ? 'atCap' : 'tired'; // 超过上限、经验已经在递减时，不再说「满额」
-      if (mins >= hi * 0.8) return 'nearCap';
-    }
-    return mins < 3 ? 'clickEarly' : 'click';
+    if (Math.floor(totalSeconds() / 60) < 3) return 'clickEarly';
+    const pool = { x: 'clickX', binance: 'clickBinance', okx: 'clickOkx' }[currentSiteKey()];
+    if (pool && (activeChar().phrases[pool] || []).some((s) => s && s.trim()) && Math.random() < 0.7) return pool;
+    return 'click';
   }
 
   // 气泡啵啵微音效（纯原生 Web Audio API，无需外部音频资源）
@@ -509,7 +708,7 @@
   }
 
   function poke() {
-    if (dead) { say('扩展已更新，请刷新页面（F5）', 5000); return; }
+    if (dead) { say('扩展已更新，请刷新页面（F5）', 5000, PRIO.user); return; }
     if (settings.appearance && settings.appearance.sound) playPopSound();
     restartClass('xpet-jump');
     const c = activeChar();
@@ -517,9 +716,9 @@
     const pokeMs = sp && sp.meta ? Math.round((sp.meta.frames / sp.meta.fps) * 1000) : 1380;
     playState('poke', pokeMs);
     const ct = clickType();
-    const murmurs = settings.stories.enabled ? XPET.STORIES.filter((s) => s.need <= xpTotal) : [];
-    if (ct === 'click' && murmurs.length && Math.random() < 0.3) say(pickLine(murmurs).murmur, 3200); // 平时点一下，偶尔说一句解锁过的碎碎念
-    else speak(ct, true);
+    const murmurs = settings.stories.enabled ? XPET.STORIES.filter((s) => s.need <= xpDays) : [];
+    if (/^click/.test(ct) && ct !== 'clickEarly' && murmurs.length && Math.random() < 0.25) say(pickLine(murmurs).murmur.replace(/\{days\}/g, String(xpDays)), 3200, PRIO.user); // 平时点一下，偶尔说一句已解锁日记里的碎碎念
+    else speak(ct, true, PRIO.user);
     if (settings.chipMode === 'click') showChipFor(4000); // 点击显示统计
   }
 
@@ -591,22 +790,100 @@
     });
     addItem(menu, '今日小结', openSummary, 'xpet-menu-sep');
     addItem(menu, '今日统计', () => showChipFor(5000));
-    addItem(menu, '暂时隐藏 (Alt+P)', toggleHide);
+    addItem(menu, (isQuietToday() ? '✓ ' : '') + '今天安静（只保留动画）', toggleQuietToday);
+
+    // 背景场景二级扩展菜单（鼠标悬浮展开）
+    const sc = (settings && settings.scene) || { mode: 'off', id: 'rain' };
+    const curLabel = sc.mode === 'off' ? '关闭' : sc.mode === 'time' ? '跟随时段' : (XPET.SCENES.find((s) => s.id === sc.id) || {}).label || '手选';
+
+    const sceneMenuParent = document.createElement('div');
+    sceneMenuParent.className = 'xpet-menu-item xpet-has-sub';
+    sceneMenuParent.innerHTML = `<span>背景场景 (${curLabel})</span><span class="xpet-submenu-arrow">▶</span>`;
+
+    const subMenu = document.createElement('div');
+    subMenu.className = 'xpet-submenu';
+    addItem(subMenu, (sc.mode === 'off' ? '✓ ' : '　') + '关闭（透明）', () => {
+      settings.scene = { ...sc, mode: 'off' };
+      XPET.saveSettings(settings);
+    });
+    addItem(subMenu, (sc.mode === 'time' ? '✓ ' : '　') + '跟随时段（自动）', () => {
+      settings.scene = { ...sc, mode: 'time' };
+      XPET.saveSettings(settings);
+    });
+    XPET.SCENES.forEach((s) => {
+      const active = sc.mode === 'manual' && sc.id === s.id;
+      addItem(subMenu, (active ? '✓ ' : '　') + s.label, () => {
+        settings.scene = { mode: 'manual', id: s.id };
+        XPET.saveSettings(settings);
+      });
+    });
+    sceneMenuParent.appendChild(subMenu);
+
+    // 悬停定位：动态实测子菜单高宽，自动纠正垂直与水平方向溢出
+    sceneMenuParent.addEventListener('mouseenter', () => {
+      subMenu.style.top = '-4px';
+      subMenu.style.maxHeight = '';
+      subMenu.style.overflowY = '';
+      subMenu.classList.remove('xpet-submenu-flip');
+
+      const rect = subMenu.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      // 1. 水平方向检测：右边超出视口则向左翻转
+      if (rect.right > window.innerWidth - MARGIN) {
+        subMenu.classList.add('xpet-submenu-flip');
+      }
+
+      // 2. 垂直方向检测：下方超出视口则上移，必要时限制最大高度并加滚动
+      const overflowBottom = rect.bottom - (window.innerHeight - MARGIN);
+      if (overflowBottom > 0) {
+        let newTop = -4 - overflowBottom;
+        const parentRect = sceneMenuParent.getBoundingClientRect();
+        // 如果上移后子菜单顶部超出屏幕顶部，贴住屏幕上沿并限制最大高度
+        if (parentRect.top + newTop < MARGIN) {
+          newTop = MARGIN - parentRect.top;
+          subMenu.style.maxHeight = Math.max(120, window.innerHeight - 2 * MARGIN) + 'px';
+          subMenu.style.overflowY = 'auto';
+        }
+        subMenu.style.top = Math.round(newTop) + 'px';
+      }
+    });
+
+    menu.appendChild(sceneMenuParent);
+
+    addItem(menu, '暂时隐藏 (Alt+P)', toggleHide, 'xpet-menu-sep');
     addItem(menu, '设置 / 添加角色…', () => {
       try { chrome.runtime.sendMessage({ type: 'openOptions' }); } catch (_) {}
     });
     document.body.appendChild(menu);
     const mw = menu.offsetWidth, mh = menu.offsetHeight;
-    menu.style.left = Math.max(MARGIN, Math.min(e.clientX, window.innerWidth - mw - MARGIN)) + 'px';
-    menu.style.top = Math.max(MARGIN, Math.min(e.clientY, window.innerHeight - mh - MARGIN)) + 'px';
+    const posX = Math.max(MARGIN, Math.min(e.clientX, window.innerWidth - mw - MARGIN));
+    const posY = Math.max(MARGIN, Math.min(e.clientY, window.innerHeight - mh - MARGIN));
+    menu.style.left = posX + 'px';
+    menu.style.top = posY + 'px';
   });
+
+  function toggleQuietToday() {
+    if (isQuietToday()) {
+      settings.quietUntil = 0;
+      XPET.saveSettings(settings);
+      say('嗯，恢复说话了', 1800, PRIO.user);
+      pumpAnnounce(600);
+    } else {
+      const end = new Date();
+      end.setHours(24, 0, 0, 0);
+      settings.quietUntil = end.getTime();
+      XPET.saveSettings(settings);
+      say('好，今天安静陪着', 1800, PRIO.user);
+    }
+  }
 
   function toggleHide() {
     isHiddenByHotkey = !isHiddenByHotkey;
     updateSiteVisibility();
     closeMenu();
     closeSummary();
-    if (!isHiddenByHotkey && checkSiteAllowed(settings)) say('我回来啦～', 1800);
+    if (!isHiddenByHotkey && checkSiteAllowed(settings)) say('我回来啦～', 1800, PRIO.user);
   }
 
   document.addEventListener('keydown', (e) => {
@@ -636,7 +913,6 @@
     repostConfirm: '[data-testid="retweetConfirm"]',
     follow: '[data-testid$="-follow"]',
   };
-  const LABELS = { post: '发', like: '赞', bookmark: '藏', repost: '转', follow: '关注' };
   const OLD_KEY = 'xpetCount'; // 旧版只存"今天"的计数，首次运行时迁移进历史
   const emptySite = () => ({ post: 0, like: 0, bookmark: 0, repost: 0, follow: 0, seconds: 0, scroll: 0 });
   const emptyDay = () => ({
@@ -739,7 +1015,7 @@
   }
   function setStatus(patch) { updateStatus((st) => ({ ...st, ...patch })); }
   try {
-    setStatus({ version: chrome.runtime.getManifest().version, loadedAt: Date.now(), page: location.pathname });
+    setStatus({ version: chrome.runtime.getManifest().version, loadedAt: Date.now() });
   } catch (e) {}
 
   function statsText() { return chipText(); }
@@ -763,8 +1039,9 @@
         d.bySite[siteKey][type] = (d.bySite[siteKey][type] || 0) + 1;
       }
     }).then(() => {
-      restartClass(type === 'post' ? 'xpet-jump' : 'xpet-nudge');
-      speak(type);
+      const spoke = reactTo(type); // 不是每次都说：按概率和冷却决定（点赞最少）
+      if (type === 'post') restartClass('xpet-jump');
+      else if (spoke) restartClass('xpet-nudge');
     });
   }
 
@@ -878,6 +1155,8 @@
     const siteAct = matchSiteRule(target);
     if (siteAct === SKIP) return null;
     if (siteAct) return siteAct;
+    // X 的「转发」确认项是 role="menuitem" 的 div，不是 button，下面的 button 检查会把它漏掉，所以先单独识别
+    if (target.closest(SELECTORS.repostConfirm)) return 'repost';
     const btn = target.closest('button, [role="button"], a, input[type="submit"]');
     if (!btn) return null;
 
@@ -926,59 +1205,6 @@
     return null;
   }
 
-  // 探针：仅在币安 / OKX 页面记录点击元素的信息（含是否被识别），供设置页「诊断」查看，用来校准选择器。
-  // 校准完成后可以整段删除（连同调用它的那一行），不影响统计功能
-  const PROBE_ENABLED = false; // 校准期开着；确认稳定后改成 false 即可关闭探针（不再写存储）
-  function probeClick(t, act) {
-    if (!PROBE_ENABLED) return;
-    const site = currentSiteKey();
-    if (site !== 'binance' && site !== 'okx') return;
-    if (!t.closest || t.closest('[role="textbox"], .ProseMirror, #xpet-root, #xpet-menu, #xpet-summary')) return; // 编辑框里打字、点宠物自己的界面都不记录
-    try {
-      const cut = (s, n) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n);
-      // 不用 innerText（会强制排版，对 body 这种大节点很贵）；只对子元素不多的节点取文字
-      const smallText = (n) => (n.childElementCount < 40 ? cut(n.textContent, 24) : '');
-      const clsOf = (n) => (typeof n.className === 'string' ? n.className : (n.className && n.className.baseVal) || '');
-      const pathSig = (n) => { const p = n.querySelector && n.querySelector('path'); const d = (p && p.getAttribute('d')) || ''; return d ? d.length + ':' + d.slice(0, 10) : ''; };
-      const nodes = [];
-      const chain = [];
-      let node = t;
-      for (let i = 0; i < 7 && node && node.nodeType === 1; i++, node = node.parentElement) {
-        nodes.push(node);
-        chain.push({
-          tag: node.tagName.toLowerCase(),
-          id: cut(node.id, 40),
-          cls: cut(clsOf(node), 80),
-          role: node.getAttribute('role') || '',
-          aria: cut(node.getAttribute('aria-label'), 40),
-          title: cut(node.getAttribute('title'), 40),
-          tid: node.getAttribute('data-testid') || node.getAttribute('data-e2e') || node.getAttribute('data-bn-type') || '',
-          pressed: node.getAttribute('aria-pressed') || '',
-          pos: node.parentElement ? Array.prototype.indexOf.call(node.parentElement.children, node) + '/' + node.parentElement.children.length : '', // 在同级里的位置，用来区分并排的图标
-          text: smallText(node),
-        });
-      }
-      const at = Date.now();
-      updateStatus((st) => {
-        const all = Array.isArray(st.probe) ? st.probe : [];
-        // 每个站点各留最近 12 条，避免一个站点的记录把另一个站点的挤掉
-        const list = all.filter((p) => p.site !== site).concat(all.filter((p) => p.site === site).slice(-11));
-        list.push({ at, site, path: location.pathname.slice(0, 60), matched: act || '', chain });
-        return { ...st, probe: list };
-      });
-      // 600ms 后再看一次最内 4 层的 class、文字和图标路径：用来判断点赞/收藏之类的按钮点完后状态有没有变、怎么变
-      setTimeout(() => {
-        const after = nodes.slice(0, 4).map((n) => cut(clsOf(n), 60) + '|' + smallText(n) + '|' + pathSig(n));
-        updateStatus((st) => {
-          const list = Array.isArray(st.probe) ? st.probe : [];
-          const hit = list.find((p) => p.at === at && p.site === site);
-          if (hit) hit.after = after;
-          return { ...st, probe: list };
-        });
-      }, 600);
-    } catch (e) {}
-  }
-
   document.addEventListener('click', (e) => {
     if (!allowedNow) return;
     const t = e.target;
@@ -988,7 +1214,6 @@
       if (t.closest('.okui-dialog-mask') || t.closest('.okds-close') || (cb && cb.querySelector('.okds-close'))) quoteArmedAt = 0;
     }
     const act = matchAction(t);
-    probeClick(t, act);
     if (act) {
       const hit = lastHit;
       lastHit = null;
@@ -1068,23 +1293,9 @@
   }
 
   let lastTick = Date.now();
-  let lastTiredBlock = 0;
-  let tiredBaseline = null;
   let historyLoaded = false;
   let lastNightAt = 0;
-
-  // 接近每日上限：到上限的 80% 说一句，到达上限再说一句（每天各一次；重新打开页面时已经过了的不补发）
-  let capBase = null; // { near: bool, at: bool }
-  function checkCap() {
-    const max = settings.goal.maxMinutes;
-    if (!settings.reminders.cap || !(max > 0)) { capBase = null; return; }
-    const mins = totalSeconds() / 60;
-    const now = { near: mins >= max * 0.8, at: mins >= max };
-    if (capBase === null) { capBase = now; return; }
-    if (now.at && !capBase.at) speak('atCap');
-    else if (now.near && !capBase.near) speak('nearCap');
-    capBase = now;
-  }
+  let noticePending = true; // 需要检查有没有新的纪念 / 解锁 / 日记要说；只在宠物看得见时才检查和说
 
   const tickTimer = setInterval(() => {
     if (!extAlive()) { handleDead(); return; }
@@ -1100,35 +1311,30 @@
       counts = emptyDay();
       pendingSec = 0;
       pendingScroll = 0;
-      lastTiredBlock = 0;
-      tiredBaseline = null;
-      capBase = null;
-      settleXp(); // 新的一天开始，结算前一天的经验
+      settleDays(); // 新的一天开始，结算前一天的陪伴天数
     }
 
-    const active = document.visibilityState === 'visible' && document.hasFocus() && now - lastActive < 60000;
+    // 只有属于生效页面时才计时：币安 / OKX 的交易等页面上脚本虽然加载了，但不会统计任何时长
+    const active = allowedNow && document.visibilityState === 'visible' && document.hasFocus() && now - lastActive < 60000;
     if (active) pendingSec += dt;
 
     if (settingsLoaded) trackBack(now, active);
     if (active && historyLoaded && settingsLoaded) {
       const r = settings.reminders;
-      const block = Math.floor(totalSeconds() / (r.tiredMinutes * 60));
-      if (tiredBaseline === null) {
-        tiredBaseline = block; // 以当前时长为起点，重新打开页面不会补发提醒
-        lastTiredBlock = block;
-      } else if (block > lastTiredBlock) {
-        lastTiredBlock = block;
-        if (r.tired) speak('tired');
-      }
       const hour = new Date().getHours();
-      if (r.night && XPET.inWindow(hour, r.nightStart, r.nightEnd) && now - lastNightAt > 45 * 60 * 1000) {
+      if (r.night && canSpeak() && XPET.inWindow(hour, r.nightStart, r.nightEnd) && now - lastNightAt > 45 * 60 * 1000) {
         lastNightAt = now;
-        speak('night');
+        speak('night', false, PRIO.act);
       }
-      checkCap();
-      checkGreeting(now);
+      if (r.night && XPET.inWindow(hour, r.nightStart, r.nightEnd)) maybeYawn(now);
+      if (canSpeak()) checkGreeting(now);
+    }
+    if (noticePending && historyLoaded && settingsLoaded && canSpeak()) { // 有新的纪念 / 解锁 / 日记时排队说（宠物被隐藏时不检查，等看得见了再说）
+      noticePending = false;
+      checkNotices();
     }
     updatePose(active);
+    if (settingsLoaded) applyScene(); // 跟随时段模式：跨小时无缝更新场景（结果变化时才动 DOM）
 
     refreshChip();
     if (pendingSec >= 15 || pendingScroll >= 3000) flush();
@@ -1156,8 +1362,8 @@
     return p;
   }
 
-  // ---------- 时段问候：每个时段每天第一次在线时说一句（跨标签页只说一次） ----------
-  let greetChecked = ''; // 本页面已处理过的 日期+节日+时段，避免每 5 秒读一次存储
+  // ---------- 时段问候：每个时段每天第一次在线时说一句（跨标签页只说一次，显示成功后才写入 GREET_KEY） ----------
+  let greetChecked = ''; // 本页面已入队或已确认过的 日期+节日+时段，避免每 5 秒读一次存储
   const pickLine = (arr) => arr[Math.floor(Math.random() * arr.length)];
   // 每天第一次在线：节日/纪念日优先，其次是当前时段的问候；节日当天会把当前时段一并标记为已问候，避免连说两句
   function checkGreeting(now) {
@@ -1172,20 +1378,34 @@
     const mark = today + holKey + (slot ? slot.id : '');
     if (greetChecked === mark) return;
     greetChecked = mark;
-    let line = '';
-    updateKey(XPET.GREET_KEY, () => ({}), (r) => {
-      const rec = r && r.date === today && Array.isArray(r.done) ? r : { date: today, done: [] };
-      const done = rec.done.slice();
-      if (hol && !done.includes(holKey)) {
-        line = pickLine(hol.lines);
-        done.push(holKey);
-        if (slot && !done.includes(slot.id)) done.push(slot.id);
-      } else if (slot && !done.includes(slot.id)) {
-        line = pickLine(slot.lines);
-        done.push(slot.id);
-      } else return rec;
-      return { date: today, done };
-    }).then(() => { if (line) say(line, 3000); });
+    try {
+      chrome.storage.local.get(XPET.GREET_KEY, (res) => {
+        const r = res && res[XPET.GREET_KEY];
+        const done = r && r.date === today && Array.isArray(r.done) ? r.done : [];
+        let line = '';
+        const toAdd = [];
+        if (hol && !done.includes(holKey)) {
+          line = pickLine(hol.lines);
+          toAdd.push(holKey);
+          if (slot && !done.includes(slot.id)) toAdd.push(slot.id);
+        } else if (slot && !done.includes(slot.id)) {
+          line = pickLine(slot.lines);
+          toAdd.push(slot.id);
+        }
+        if (!line) return;
+        enqueueAnnounce({
+          key: 'greet:' + mark,
+          text: line,
+          expiresAt: Date.now() + 5 * 60 * 1000, // 问候具有时效性，5 分钟内未展示则过期丢弃
+          ack: () => updateKey(XPET.GREET_KEY, () => ({}), (cur) => {
+            const rec = cur && cur.date === today && Array.isArray(cur.done) ? cur : { date: today, done: [] };
+            const next = rec.done.slice();
+            toAdd.forEach((k) => { if (!next.includes(k)) next.push(k); });
+            return { date: today, done: next };
+          }),
+        });
+      });
+    } catch (e) {}
   }
 
   // ---------- 回来了：同一天内离开一阵（默认 90 分钟）再回来，说一句 ----------
@@ -1199,9 +1419,15 @@
         chrome.storage.local.get(XPET.SEEN_KEY, (r) => {
           const seen = r && r[XPET.SEEN_KEY];
           const b = settings.back;
-          // 只在"同一天"内的离开才算；跨天回来由到账通知和时段问候负责
+          // 只在"同一天"内的离开才算；跨天回来由时段问候和陪伴结算负责
           if (b && b.enabled && typeof seen === 'number' && now - seen >= b.minutes * 60000 && dayStr(new Date(seen)) === todayStr()) {
-            setTimeout(() => speak('back'), 3500); // 错开可能同时出现的时段问候
+            setTimeout(() => {
+              enqueueAnnounce({
+                key: 'back',
+                type: 'back',
+                expiresAt: Date.now() + 5 * 60 * 1000, // 5 分钟过期
+              });
+            }, 3500);
           }
           chrome.storage.local.set({ [XPET.SEEN_KEY]: now });
         });
@@ -1213,37 +1439,27 @@
   }
 
   // =====================================================
-  // 经验：每天结算一次，自动累积，不需要领取；达到门槛自动解锁装扮
+  // 陪伴天数：每天结算一次（有记录的天数 +1，只增不减）；装扮和日记按累计天数自动解锁，不需要领取
   // =====================================================
   let unlockName = '';
-  let settleInfo = { when: '昨天', gain: 0 }; // 最近一次结算到账的信息，给「昨日到账」台词用
-  function nextHint() {
-    const next = XPET.ACCESSORIES.find((a) => a.need > xpTotal);
-    return next ? `${next.icon}${next.name} 还差 ${next.need - xpTotal}` : '装备都集齐啦';
-  }
   const dayStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const todayXp = () => XPET.calcXp(Math.floor(totalSeconds() / 60), settings.goal);
 
   try {
     chrome.storage.local.get(XPET.XP_KEY, (r) => {
-      xpTotal = (r && r[XPET.XP_KEY] && r[XPET.XP_KEY].total) || 0;
-      xpDays = (r && r[XPET.XP_KEY] && r[XPET.XP_KEY].daysTotal) || 0;
+      xpDays = daysOf(r && r[XPET.XP_KEY]);
       renderChar();
     });
   } catch (e) {}
 
-  // 结算所有"已过去、还没结算"的日子。幂等：多个标签页同时执行，结果一样。
-  // 总经验由结算记录求和得出，而不是在旧值上累加，所以不会重复计算。
-  function settleXp() {
+  // 结算所有"已过去、还没结算"的日子（有记录的天数 +1）。幂等：多个标签页同时执行，结果一样。
+  function settleDays() {
     const p = writeChain.then(() => new Promise((resolve) => {
       try {
-        chrome.storage.local.get([XPET.HIST_KEY, XPET.XP_KEY, XPET.SETTINGS_KEY], (r) => {
+        chrome.storage.local.get([XPET.HIST_KEY, XPET.XP_KEY], (r) => {
           const h = (r && r[XPET.HIST_KEY]) || {};
-          const xp = (r && r[XPET.XP_KEY]) || {};
-          const settled = xp.settled || {};
+          const rec = (r && r[XPET.XP_KEY]) || {};
+          const settled = rec.settled || {};
           const before = new Set(Object.keys(settled));
-          const announced = Array.isArray(xp.announced) ? xp.announced.slice() : [];
-          const goal = XPET.mergeSettings(r && r[XPET.SETTINGS_KEY]).goal;
           const today = todayStr();
 
           Object.keys(h).sort().forEach((d) => {
@@ -1251,66 +1467,103 @@
             const secs = h[d].seconds || 0;
             if (secs < 60) return; // 基本没用，不结算
             const mins = Math.round(secs / 60);
-            settled[d] = { min: mins, xp: XPET.calcXp(mins, goal) };
+            settled[d] = { min: mins };
           });
           const keep = Object.keys(settled).sort().slice(-400);
           const trimmed = {};
           keep.forEach((d) => { trimmed[d] = settled[d]; });
 
-          const total = keep.reduce((a, d) => a + (trimmed[d].xp || 0), 0);
-          const fresh0 = Object.keys(trimmed).filter((d) => !before.has(d));
-          let daysTotal = Number.isFinite(xp.daysTotal) ? xp.daysTotal : before.size; // 累计陪伴天数：只增不减，不受 400 天保留期限制
-          daysTotal += fresh0.length;
-          const prevMs = Array.isArray(xp.milestones) ? xp.milestones.slice() : XPET.MILESTONE_DAYS.filter((m) => m <= daysTotal - fresh0.length);
-          const newMs = XPET.MILESTONE_DAYS.filter((m) => m <= daysTotal && !prevMs.includes(m));
-          const storyAnn = Array.isArray(xp.stories) ? xp.stories.slice() : [];
-          const newStories = XPET.STORIES.filter((s) => s.need <= total && !storyAnn.includes(s.id));
-          newStories.forEach((s) => storyAnn.push(s.id));
-          const newly = XPET.ACCESSORIES.filter((a) => a.need > 0 && a.need <= total && !announced.includes(a.id));
-          newly.forEach((a) => announced.push(a.id));
-
-          chrome.storage.local.set({ [XPET.XP_KEY]: { settled: trimmed, announced, total, milestones: prevMs.concat(newMs), stories: storyAnn, daysTotal } }, () => {
-            const fresh = Object.keys(trimmed).filter((d) => !before.has(d)).sort();
-            resolve({ total, name: newly.length ? newly[newly.length - 1].name : '', fresh: fresh.map((d) => ({ d, xp: trimmed[d].xp || 0 })), days: daysTotal, milestone: newMs.length, story: newStories.length ? newStories[newStories.length - 1].title : '' });
-          });
+          const fresh = keep.filter((d) => !before.has(d)).length;
+          const prevDays = Number.isFinite(rec.daysTotal) ? rec.daysTotal : before.size; // 累计陪伴天数：只增不减，不受 400 天保留期限制
+          const daysTotal = prevDays + fresh;
+          chrome.storage.local.set({ [XPET.XP_KEY]: { ...rec, settled: trimmed, daysTotal } }, () => resolve(daysTotal));
         });
       } catch (e) { resolve(null); }
     }));
     writeChain = p.catch(() => {});
-    p.then((res) => {
-      if (!res) return;
-      xpTotal = res.total;
-      xpDays = res.days || 0;
+    p.then((days) => {
+      if (days === null) return;
+      xpDays = days;
       renderChar();
-      let delay = 1500;
-      if (res.fresh && res.fresh.length) { // 昨日到账：刚结算了新的日子，告诉用户到账了多少
-        const gain = res.fresh.reduce((a, f) => a + f.xp, 0);
-        const y = new Date(); y.setDate(y.getDate() - 1);
-        const only = res.fresh.length === 1 ? res.fresh[0].d : '';
-        settleInfo = { gain, when: only ? (only === dayStr(y) ? '昨天' : only.slice(5).replace('-', '月') + '日') : `这 ${res.fresh.length} 天` };
-        setTimeout(() => speak(gain > 0 ? 'settled' : 'settledZero'), delay);
-        delay += 4800; // 到账提示说完再说解锁
-      }
-      if (res.milestone && settings.milestone) { // 陪伴天数里程碑
-        setTimeout(() => speak('milestone'), delay);
-        delay += 4800;
-      }
-      if (res.name) {
-        unlockName = res.name; // 一次登录补上多件时，只提一次最新的
-        setTimeout(() => speak('unlock'), delay);
-        delay += 4800;
-      }
-      if (res.story && settings.stories.enabled) { // 小本子写了新的一页（一次补上多页时，只提最新的）
-        storyTitle = res.story;
-        setTimeout(() => speak('story'), delay);
-      }
+      noticePending = true; // 天数变了，可能有新的纪念 / 装扮 / 日记；等宠物看得见时再检查并说
     });
     return p;
   }
-  setTimeout(settleXp, 2500); // 启动时补结算之前的日子
+  setTimeout(settleDays, 2500); // 启动时补结算之前的日子
+
+  // 有没有新的里程碑 / 装扮 / 日记要说。
+  // 采用「先只读检查 → 入队 → 气泡真正显示成功后再调用 ack 写入已通知标记」：
+  // 即使入队后开启了今天安静、连续被高优气泡打断、或者直接刷新/关闭了网页，未展示的通知也不会被消耗，下次仍会补发。
+  function checkNotices() {
+    try {
+      chrome.storage.local.get(XPET.XP_KEY, (res) => {
+        const rec = (res && res[XPET.XP_KEY]) || {};
+        const days = daysOf(rec);
+        const announced = Array.isArray(rec.announced) ? rec.announced : [];
+        // 老数据没有里程碑记录时，把已经过了的都算作已通知，不补发
+        if (!Array.isArray(rec.milestones)) {
+          const initMs = XPET.MILESTONE_DAYS.filter((m) => m <= days);
+          updateKey(XPET.XP_KEY, () => ({}), (cur) => ({ ...cur, milestones: Array.isArray(cur.milestones) ? cur.milestones : initMs }));
+        }
+        const prevMs = Array.isArray(rec.milestones) ? rec.milestones : XPET.MILESTONE_DAYS.filter((m) => m <= days);
+        const newMs = XPET.MILESTONE_DAYS.filter((m) => m <= days && !prevMs.includes(m));
+        const storyAnn = Array.isArray(rec.stories) ? rec.stories : [];
+        const newStories = XPET.STORIES.filter((s) => s.need <= days && !storyAnn.includes(s.id));
+        const newly = XPET.ACCESSORIES_ENABLED ? XPET.ACCESSORIES.filter((a) => a.need > 0 && a.need <= days && !announced.includes(a.id)) : [];
+
+        if (newMs.length) {
+          const ackMs = () => updateKey(XPET.XP_KEY, () => ({}), (cur) => {
+            const ms = Array.isArray(cur.milestones) ? cur.milestones.slice() : [];
+            newMs.forEach((m) => { if (!ms.includes(m)) ms.push(m); });
+            return { ...cur, milestones: ms };
+          });
+          if (settings.milestone) {
+            enqueueAnnounce({ key: 'ms:' + newMs.join(','), type: 'milestone', ack: ackMs });
+          } else {
+            ackMs();
+          }
+        }
+
+        if (newly.length) {
+          const gearName = newly[newly.length - 1].name; // 一次补上多件时只提最新的
+          const ids = newly.map((a) => a.id);
+          enqueueAnnounce({
+            key: 'gear:' + ids.join(','),
+            type: 'unlock',
+            prepare: () => { unlockName = gearName; },
+            ack: () => updateKey(XPET.XP_KEY, () => ({}), (cur) => {
+              const ann = Array.isArray(cur.announced) ? cur.announced.slice() : [];
+              ids.forEach((id) => { if (!ann.includes(id)) ann.push(id); });
+              return { ...cur, announced: ann };
+            }),
+          });
+        }
+
+        if (newStories.length) {
+          const latestTitle = newStories[newStories.length - 1].title;
+          const sids = newStories.map((s) => s.id);
+          const ackStory = () => updateKey(XPET.XP_KEY, () => ({}), (cur) => {
+            const st = Array.isArray(cur.stories) ? cur.stories.slice() : [];
+            sids.forEach((id) => { if (!st.includes(id)) st.push(id); });
+            return { ...cur, stories: st };
+          });
+          if (settings.stories && settings.stories.enabled) {
+            enqueueAnnounce({
+              key: 'story:' + sids.join(','),
+              type: 'story',
+              prepare: () => { storyTitle = latestTitle; },
+              ack: ackStory,
+            });
+          } else {
+            ackStory();
+          }
+        }
+      });
+    } catch (e) {}
+  }
 
   // =====================================================
-  // 今日小结：只在你点开时显示，语气永远是肯定的
+  // 今日小结：只在你点开时显示，只列事实、不评价
   // =====================================================
   let summaryEl = null;
   let summaryTimer = null;
@@ -1330,12 +1583,8 @@
     } catch (e) { buildSummary({}); }
   }
 
-  function buildSummary(xpRec) {
-    const goal = settings.goal;
+  function buildSummary() {
     const mins = Math.floor(totalSeconds() / 60);
-    const lo = goal.minMinutes, hi = goal.maxMinutes;
-    const over = hi > 0 && mins > hi;
-    const under = lo > 0 && mins < lo;
 
     // 所有文字都用 textContent，不拼 HTML
     const mk = (tag, cls, text) => {
@@ -1354,13 +1603,7 @@
     head.appendChild(mk('div', 'xpet-sum-time', XPET.fmtDur(mins)));
     summaryEl.appendChild(head);
 
-    // ② 状态：圆点颜色 + 一句话，你设的区间放在下面一行小字
-    const state = mk('div', 'xpet-sum-state ' + (over ? 'over' : under ? 'under' : 'in'));
-    state.appendChild(mk('span', 'xpet-sum-dot'));
-    state.appendChild(mk('span', '', over ? `比上限多了 ${mins - hi} 分钟，没关系` : under ? `还没到下限 ${lo} 分钟` : '在你设的范围内'));
-    summaryEl.appendChild(state);
-    const rng = hi > 0 ? `${lo}–${hi} 分钟` : lo > 0 ? `${lo} 分钟以上` : '';
-    if (rng) summaryEl.appendChild(mk('div', 'xpet-sum-sub', `你设的范围：${rng}`));
+    // ② 状态：不再拿今天的时长和任何区间比较，只列事实
 
     // ③ 五项互动：数字在上、名称在下；为 0 的项变淡
     const grid = mk('div', 'xpet-sum-grid');
@@ -1397,23 +1640,10 @@
       blocks.forEach((b) => summaryEl.appendChild(b));
     }
 
-    // ⑤ 经验：今天预计 + 累计；下一件装备放在小字里
-    const next = XPET.ACCESSORIES.find((a) => a.need > xpTotal);
-    summaryEl.appendChild(mk('div', 'xpet-sum-sec', '经验'));
-    const xpMain = mk('div', 'xpet-sum-xp');
-    xpMain.appendChild(mk('span', '', '今天预计 '));
-    xpMain.appendChild(mk('b', 'xpet-sum-xp-num', `+${todayXp()}`));
-    xpMain.appendChild(mk('span', 'xpet-sum-xp-total', `累计 ${xpTotal}`));
-    summaryEl.appendChild(xpMain);
-    summaryEl.appendChild(mk('div', 'xpet-sum-sub', '次日自动结算' + (next ? `　下一件 ${next.icon}${next.name} 还差 ${next.need - xpTotal}` : '　装备都集齐啦')));
-
-    const line = lineFor(over ? 'summaryOver' : 'summaryOk');
-    if (line) {
-      const foot = document.createElement('div');
-      foot.className = 'xpet-sum-foot';
-      foot.textContent = line;
-      summaryEl.appendChild(foot);
-    }
+    // ⑤ 陪伴：累计天数；下一件桌上的东西还差几天（若开启了桌搭）
+    const next = XPET.ACCESSORIES_ENABLED ? XPET.ACCESSORIES.find((a) => a.need > xpDays) : null;
+    summaryEl.appendChild(mk('div', 'xpet-sum-sec', '陪伴'));
+    summaryEl.appendChild(mk('div', 'xpet-sum-sub', `一起 ${xpDays} 天` + (XPET.ACCESSORIES_ENABLED ? (next ? `　${next.icon}${next.name} 还差 ${next.need - xpDays} 天` : '　桌上的东西都齐了') : '')));
     document.body.appendChild(summaryEl);
 
     const r = root.getBoundingClientRect();
@@ -1439,8 +1669,9 @@
     clearInterval(tickTimer);
     chip.style.display = 'none';
     closeSummary();
-    say('扩展已更新，请刷新页面（F5）', 600000);
+    say('扩展已更新，请刷新页面（F5）', 600000, PRIO.user);
   }
 
   reloadSettings();
 })();
+

@@ -19,12 +19,12 @@
         <button id="cal-today" type="button">回到本月</button>
       </div>
       <div id="cal"></div>
-      <div id="cal-detail" class="hint">点一天看详情。颜色只表示和你设的区间的关系，没有对错。</div>
+      <div id="cal-detail" class="hint">点一天看详情。有颜色的日子表示那天有陪伴记录。</div>
       <div id="cal-month" class="cal-month"></div>
       <div class="cal-legend" id="cal-legend"></div>
       <details><summary>数据管理</summary>
-        <p class="hint">在线时长只在页面可见、窗口有焦点、且最近 1 分钟内有操作时才计时。滚动距离按屏幕像素折算成米，只是估算值。历史保留 90 天，经验结算记录保留 400 天。</p>
-        <p class="hint"><b>备份</b>：包含角色（含图片）、历史统计、经验、设置。换电脑、重装扩展前先导出一份。</p>
+        <p class="hint">在线时长只在页面可见、窗口有焦点、且最近 1 分钟内有操作时才计时。滚动距离按屏幕像素折算成米，只是估算值。历史保留 90 天，陪伴天数记录保留 400 天（累计天数只增不减）。</p>
+        <p class="hint"><b>备份</b>：包含角色（含图片）、历史统计、陪伴天数、设置。换电脑、重装扩展前先导出一份。</p>
         <button id="backup-export" type="button">导出备份</button>
         <button id="backup-import" type="button">导入备份…</button>
         <input type="file" id="backup-file" accept="application/json,.json" hidden>
@@ -33,21 +33,10 @@
       </details>
     </section>
 
-    <section class="goal-sec" id="goal">
-      <h2>每日时间区间与经验</h2>
-      <p id="goal-sum" class="goal-sum"></p>
-      <p class="hint">每天在站点上的在线时长落在你设的区间内，当天得满额经验（固定值，不随时间增加）。经验按天自动结算、自动累积，不需要领取；攒够会自动解锁装扮。</p>
-      <label class="row">下限：<input type="number" id="s-goalMin" class="num" min="0" max="1440"> 分钟（0 = 不设下限；低于下限只给一部分，按比例）</label>
-      <label class="row">上限：<input type="number" id="s-goalMax" class="num" min="0" max="1440"> 分钟（0 = 不设上限）</label>
-      <label class="row">超出上限后：每多一分钟逐渐减少，用满 <input type="number" id="s-goalGrace" class="num" min="1" max="1440"> 分钟后当天经验降为 0</label>
-      <label class="row">满额基础经验：<input type="number" id="s-goalBase" class="num" min="1" max="1000"> 经验值（达标后每日获得的满额 XP）</label>
-      <p class="hint">超出上限不会扣已有的经验，也没有任何惩罚提示；最低为 0。</p>
-    </section>
-
     <section class="book-sec">
       <details id="book">
-        <summary id="book-sum">宠物的小本子</summary>
-        <p class="hint">随累计经验解锁，全部可见、没有隐藏内容。解锁的页会写下一件你确实做到了的事。</p>
+        <summary id="book-sum">宠物的日记</summary>
+        <p class="hint">宠物自己的日记：随累计陪伴天数解锁（不要求连续），全部可见、没有隐藏内容。</p>
         <div id="book-list"></div>
       </details>
     </section>
@@ -61,6 +50,32 @@
       <h2>显示与提醒</h2>
       <p class="hint">点开分组查看；不需要的功能可以在这里关掉，修改会立刻生效。</p>
 
+      <details class="grp" open><summary>伴宠画像（选几个选项，让它更像你）</summary>
+        <p class="hint">不用写台词，选几个选项就行。「作息」「话多话少」选完立刻生效；「语气」要点下面的按钮才会套到当前角色，只改点击、发文、点赞、收藏、转发、关注、深夜、回来这几组台词，其他台词不动。</p>
+        <label class="row">作息：
+          <select id="p-rhythm">
+            <option value="owl">夜猫子（凌晨 3–6 点才说「好晚」）</option>
+            <option value="normal">普通（凌晨 1–5 点）</option>
+            <option value="early">早睡型（晚上 11 点到凌晨 5 点）</option>
+          </select>
+        </label>
+        <label class="row">话多话少：
+          <select id="p-talk">
+            <option value="quiet">话少（点赞、收藏几乎不说）</option>
+            <option value="normal">适中</option>
+            <option value="chatty">话多</option>
+          </select>
+        </label>
+        <label class="row">语气：
+          <select id="p-voice">
+            <option value="lazy">懒散</option>
+            <option value="playful">俏皮</option>
+          </select>
+          <button id="p-apply" type="button">套用到当前角色</button>
+        </label>
+        <p class="hint" id="p-msg"></p>
+      </details>
+
       <details class="grp" open><summary>生效站点（推特 / 币安广场 / OK星球）</summary>
         <p class="hint">选择伴宠在哪些平台出现。伴宠<b>仅在类似推特的社交广场 / 星球页面</b>生效，绝不会在交易所行情、交易、盯盘等页面打扰你。</p>
         <div class="sub">
@@ -71,6 +86,19 @@
       </details>
 
       <details class="grp" open><summary>外观与交互偏好</summary>
+      <label class="row">背景场景：
+        <select id="s-sceneMode">
+          <option value="off">关闭（透明融入网页）</option>
+          <option value="time">跟随时段（清晨/午后/黄昏/夜晚自动切换）</option>
+          <option value="manual">手动固定场景</option>
+        </select>
+      </label>
+      <div id="s-sceneManualRow" class="sub" style="display:none; align-items:center; gap:8px;">
+        <label>选择场景：
+          <select id="s-sceneId"></select>
+        </label>
+        <span class="hint" id="s-sceneDesc"></span>
+      </div>
       <label class="row">伴宠不透明度：
         <input type="range" id="s-opacity" min="30" max="100" step="5" style="vertical-align:middle; width:140px;">
         <span id="s-opacityVal" style="display:inline-block; width:45px; font-weight:600;">100%</span>
@@ -108,18 +136,15 @@
       <p class="hint">上面勾选的项目，同时决定点击显示、常驻显示、右键「今日统计」和台词里 <code>{stats}</code> 的内容，它们完全一致。</p>
       </details>
 
-      <details class="grp"><summary>主动提醒（时长 / 深夜）</summary>
-      <label class="row"><input type="checkbox" id="s-tired"> 今日在线每满
-        <input type="number" id="s-tiredMin" class="num" min="5" max="720" step="5"> 分钟提醒一次</label>
+      <details class="grp"><summary>深夜、回来与纪念</summary>
       <label class="row"><input type="checkbox" id="s-night"> 每天
         <input type="number" id="s-nightStart" class="num" min="0" max="23"> 点到
-        <input type="number" id="s-nightEnd" class="num" min="0" max="23"> 点之间仍在使用时提醒</label>
-      <p class="hint">时间段可以跨午夜，例如 23 点到 5 点；起止相同表示不提醒。</p>
-      <label class="row"><input type="checkbox" id="s-cap"> 接近每日上限时提醒（到上限的 80% 一次，到达上限一次；需要在上面设了上限）</label>
+        <input type="number" id="s-nightEnd" class="num" min="0" max="23"> 点之间仍在使用时，宠物说一句深夜的心里话</label>
+      <p class="hint">时间段可以跨午夜，例如 23 点到 5 点；起止相同表示不说。</p>
       <label class="row"><input type="checkbox" id="s-back"> 同一天内离开超过
-        <input type="number" id="s-backMin" class="num" min="10" max="720" step="10"> 分钟再回来时，说一句「回来啦」</label>
+        <input type="number" id="s-backMin" class="num" min="10" max="720" step="10"> 分钟再回来时，宠物说一句「我回来了」</label>
       <label class="row"><input type="checkbox" id="s-milestone"> 累计陪伴天数到 7 / 30 / 100 / 200 / 365 天时说一句（累计，不要求连续）</label>
-      <label class="row"><input type="checkbox" id="s-stories"> 小本子写了新的一页时提示，点宠物时偶尔说一句已解锁的碎碎念</label>
+      <label class="row"><input type="checkbox" id="s-stories"> 日记写了新的一页时说一句，点宠物时偶尔说一句日记里的碎碎念</label>
       </details>
 
       <details class="grp"><summary>节日与纪念日</summary>
@@ -148,9 +173,10 @@
       <h2>说明</h2>
       <ul>
         <li>每个动作可以写多句台词，<b>一行一句</b>，触发时随机选一句；留空表示这个动作不说话。</li>
-        <li>台词里可以用 <code>{n}</code> 表示该动作今天的次数，用 <code>{stats}</code> 表示今日汇总，用 <code>{min}</code> 表示今天已在线的分钟数，用 <code>{left}</code> 表示离每日上限还剩几分钟，用 <code>{name}</code> 表示新解锁的装扮，用 <code>{xp}</code> 表示今天预计经验（今日小结结尾用）。</li>
+        <li>台词里可以用 <code>{n}</code> 表示该动作今天的次数，用 <code>{stats}</code> 表示今日汇总，用 <code>{days}</code> 表示一起的天数，用 <code>{name}</code> 表示新出现的装扮，用 <code>{title}</code> 表示新日记的标题。</li>
         <li>图片支持 PNG / JPG / WebP / GIF。较大的图片会自动缩小到 160 像素以内；超过 1.5 MB 的 GIF 会只保留第一帧。建议使用透明背景的 PNG。</li>
         <li>所有数据只保存在你自己的浏览器里，不会上传。浏览器给扩展的存储空间有限（约 10 MB），角色太多或图片太大时会保存失败。</li>
+        <li>遇到问题，或者觉得哪句台词出戏、哪里被打扰到了，欢迎到 <a href="https://github.com/laochenjames/CCbd/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 反馈。插件本身没有任何数据上报，开发者看不到你的使用情况，所以你的反馈很重要（可以附上上面「诊断」里的内容）。</li>
       </ul>
     </section>
     <!-- AI 设定与台词一键生成 / 导入弹窗 -->
@@ -176,40 +202,30 @@
               <div class="ai-field">
                 <label for="ai-look-sel">角色内置形象：</label>
                 <select id="ai-look-sel">
-                  <option value="pepe">🐸 佩佩蛙</option>
-                  <option value="doge">🐕 柴犬</option>
-                  <option value="cat">🐱 哈基米 (猫)</option>
-                  <option value="teddy">🐶 泰迪犬</option>
-                  <option value="slime">🟢 小史莱姆</option>
+                  <option value="chabit">🧸 小桌宠</option>
                 </select>
               </div>
               <div class="ai-field">
                 <label for="ai-name-input">角色名称：</label>
-                <input type="text" id="ai-name-input" placeholder="例如：佩佩 / 阿柴 / 喵喵" maxlength="20">
+                <input type="text" id="ai-name-input" placeholder="例如：CICI" maxlength="20">
               </div>
             </div>
 
-            <div class="ai-grid-2">
-              <div class="ai-field">
-                <label for="ai-call-input">对用户的称呼：</label>
-                <input type="text" id="ai-call-input" placeholder="例如：老铁 / 主人 / 宝子 / 长官" maxlength="20">
-              </div>
-              <div class="ai-field" style="display:flex; align-items:flex-end;">
-                <label class="row" style="margin:0 0 6px 0; cursor:pointer;">
-                  <input type="checkbox" id="ai-include-slots" checked>
-                  同时生成 4 个时段问候（早/午/晚/凌晨）
-                </label>
-              </div>
+            <div class="ai-field" style="margin-bottom:8px;">
+              <label class="row" style="margin:0; cursor:pointer;">
+                <input type="checkbox" id="ai-include-slots" checked>
+                同时生成 4 个时段问候（早/午/晚/凌晨）
+              </label>
             </div>
 
             <div class="ai-field">
               <label for="ai-persona-input">性格与人设描述：</label>
-              <input type="text" id="ai-persona-input" placeholder="例如：狂热Web3链上交易员，满嘴币圈梗，偶尔提醒止损与喝水">
+              <input type="text" id="ai-persona-input" placeholder="例如：狂热Web3链上交易员，满嘴币圈梗，替我说出刷帖时的心里话">
             </div>
 
             <div class="ai-field">
               <label for="ai-custom-input">额外个性化要求（可选）：</label>
-              <input type="text" id="ai-custom-input" placeholder="例如：喜欢吐槽、常说币圈术语、说话带喵、多催我喝水">
+              <input type="text" id="ai-custom-input" placeholder="例如：喜欢吐槽、常说币圈术语、说话带喵">
             </div>
 
             <div class="ai-field" style="margin-top:12px;">
