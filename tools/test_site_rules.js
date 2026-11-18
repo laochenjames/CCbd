@@ -88,12 +88,43 @@ const CASES = [
   ['https://www.binance.com/en/dex', false, '币安 DEX 页 (排除)'],
   ['https://www.binance.com/en/futures/square-x', false, '金融词优先：路径里虽然有 square，但在 /futures 下 (排除)'],
   ['https://www.binance.com/en/square/hashtag/earn', false, '已知取舍：广场路径中含金融词的页面宁可隐藏（如果你想让它显示，要改这条期望值并放宽 FIN_PATH）'],
+
+  // --- 视频/内容站 L1：小红书、B站、抖音（均标 assumed，待用户在浏览器核对）---
+  ['https://www.xiaohongshu.com/', true, '[assumed] 小红书首页'],
+  ['https://www.xiaohongshu.com/explore', true, '[assumed] 小红书发现页'],
+  ['https://www.xiaohongshu.com/search_result?keyword=test', true, '[assumed] 小红书搜索结果页'],
+  ['https://www.xiaohongshu.com/user/profile/123456', true, '[assumed] 小红书个人主页'],
+  ['https://www.xiaohongshu.com/discovery/item/123456', true, '[assumed] 小红书笔记详情页'],
+  ['https://www.xiaohongshu.com/login', false, '[assumed] 小红书登录页 (排除)'],
+  ['https://creator.xiaohongshu.com/creator/home', false, '[assumed] 小红书创作者路径含 creator (排除)'],
+
+  ['https://www.bilibili.com/', true, '[assumed] B站首页'],
+  ['https://www.bilibili.com/video/BV1xx411c7mD', true, '[assumed] B站视频页'],
+  ['https://www.bilibili.com/opus/123456', true, '[assumed] B站图文动态页'],
+  ['https://www.bilibili.com/read/cv123456', true, '[assumed] B站专栏页'],
+  ['https://www.bilibili.com/v/douga', true, '[assumed] B站分区页'],
+  ['https://t.bilibili.com/', true, '[assumed] B站动态子域'],
+  ['https://search.bilibili.com/all?keyword=test', true, '[assumed] B站搜索子域'],
+  ['https://space.bilibili.com/123456', true, '[assumed] B站空间子域'],
+  ['https://passport.bilibili.com/login', false, '[assumed] B站登录子域 (排除)'],
+  ['https://member.bilibili.com/platform/home', false, '[assumed] B站创作中心子域 (排除)'],
+  ['https://mall.bilibili.com/', false, '[assumed] B站会员购子域 (排除)'],
+
+  ['https://www.douyin.com/', true, '[assumed] 抖音首页'],
+  ['https://www.douyin.com/jingxuan', true, '[assumed] 抖音精选页'],
+  ['https://www.douyin.com/discover', true, '[assumed] 抖音发现页'],
+  ['https://www.douyin.com/video/7123456789', true, '[assumed] 抖音视频页'],
+  ['https://www.douyin.com/user/MS4wLjABAAAA', true, '[assumed] 抖音用户主页'],
+  ['https://www.douyin.com/search/test', true, '[assumed] 抖音搜索页'],
+  ['https://sso.douyin.com/login', false, '[assumed] 抖音 SSO 子域 (排除)'],
+  ['https://creator.douyin.com/creator-micro/home', false, '[assumed] 抖音创作者子域 (排除)'],
+  ['https://www.douyin.com/pay', false, '[assumed] 抖音支付路径 (排除)'],
 ];
 
 let passed = 0;
 for (const [rawUrl, expected, desc] of CASES) {
   const u = new URL(rawUrl);
-  const actual = XPET.siteAllowed(u.hostname, u.pathname, { x: true, binance: true, okx: true });
+  const actual = XPET.siteAllowed(u.hostname, u.pathname, { x: true, binance: true, okx: true, xhs: true, bilibili: true, douyin: true });
   assert.strictEqual(actual, expected, `[FAIL] ${desc}: ${rawUrl} -> expected ${expected}, got ${actual}`);
   passed++;
 }
@@ -102,12 +133,16 @@ for (const [rawUrl, expected, desc] of CASES) {
 assert.strictEqual(XPET.siteAllowed('x.com', '/home', { x: false, binance: true, okx: true }), false);
 assert.strictEqual(XPET.siteAllowed('www.binance.com', '/zh-CN/square', { x: true, binance: false, okx: true }), false);
 assert.strictEqual(XPET.siteAllowed('www.okx.com', '/zh-hans/orbit', { x: true, binance: true, okx: false }), false);
+assert.strictEqual(XPET.siteAllowed('www.xiaohongshu.com', '/explore', { xhs: false }), false);
+assert.strictEqual(XPET.siteAllowed('www.bilibili.com', '/video/BV1xx411c7mD', { bilibili: false }), false);
+assert.strictEqual(XPET.siteAllowed('www.douyin.com', '/jingxuan', { douyin: false }), false);
 
 // 验证 siteKeyOf：不该把 fox.com、notx.com 误判成 X
 const KEY_CASES = [
   ['x.com', 'x'], ['www.x.com', 'x'], ['twitter.com', 'x'], ['mobile.twitter.com', 'x'],
   ['www.binance.com', 'binance'], ['accounts.binance.com', 'binance'],
   ['www.okx.com', 'okx'], ['www.okx.cab', 'okx'], ['www.okx.me', 'okx'], ['www.ouyi.com', 'okx'],
+  ['www.xiaohongshu.com', 'xhs'], ['www.bilibili.com', 'bilibili'], ['t.bilibili.com', 'bilibili'], ['www.douyin.com', 'douyin'],
   ['fox.com', 'other'], ['notx.com', 'other'], ['example.com', 'other'],
 ];
 for (const [host, expected] of KEY_CASES) {

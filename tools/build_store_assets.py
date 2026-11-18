@@ -1,301 +1,420 @@
 """
 build_store_assets.py
-Generates 1280x800 screenshots and 440x280 promo tiles for the Chrome Web Store.
+Generates 1280x800 screenshots (1. 是什么 / 2. 主要功能 / 3. 自定义话风)
+and 440x280 promo tiles for the Chrome Web Store & GitHub release showcase.
+Incorporates real browser screenshots and v0.13.0 features.
 """
 
 import os
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-OUT_DIR = r'E:/Doc/Python_daye/CCbd/store_assets'
-os.makedirs(OUT_DIR, exist_ok=True)
+STORE_DIR = r'E:/Doc/Python_daye/CCbd/store_assets'
+RAW_DIR = os.path.join(STORE_DIR, 'raw')
+os.makedirs(STORE_DIR, exist_ok=True)
+os.makedirs(RAW_DIR, exist_ok=True)
 
 FONT_MAIN = 'C:/Windows/Fonts/msyh.ttc'
+FONT_BOLD = 'C:/Windows/Fonts/msyhbd.ttc'
 FONT_EN = 'C:/Windows/Fonts/arial.ttf'
 
 def get_font(size, bold=False):
+    font_path = FONT_BOLD if bold else FONT_MAIN
     try:
-        return ImageFont.truetype(FONT_MAIN, size)
+        return ImageFont.truetype(font_path, size)
     except:
-        return ImageFont.load_default()
+        try:
+            return ImageFont.truetype(FONT_MAIN, size)
+        except:
+            return ImageFont.load_default()
 
-def draw_header(d, title, subtitle):
-    # Top banner gradient background
-    f_t = get_font(34)
-    f_sub = get_font(18)
-    d.text((60, 42), title, font=f_t, fill=(255, 255, 255))
-    d.text((60, 92), subtitle, font=f_sub, fill=(154, 160, 166))
+def draw_header(d, tag, title, subtitle):
+    # Top bar badge
+    d.rounded_rectangle((60, 32, 60 + 130, 62), radius=6, fill=(34, 197, 94))
+    d.text((75, 37), tag, font=get_font(15, bold=True), fill=(255, 255, 255))
+    
+    # Title & Subtitle
+    d.text((205, 30), title, font=get_font(28, bold=True), fill=(255, 255, 255))
+    d.text((60, 78), subtitle, font=get_font(15), fill=(160, 175, 195))
 
 def create_screenshot_1():
-    # 1. 伴宠全家福与多平台陪伴
-    im = Image.new('RGBA', (1280, 800), (20, 24, 30, 255))
+    """
+    图1：是什么 —— 网页伴宠 · 社交浏览的“虚拟嘴替”
+    展示：X (推特) 真实浏览场景实拍，CICI 工位小桌宠与你的浏览心声
+    """
+    im = Image.new('RGBA', (1280, 800), (15, 20, 28, 255))
     d = ImageDraw.Draw(im)
+
+    # Top header bar
+    d.rectangle((0, 0, 1280, 115), fill=(22, 27, 36))
+    d.line([(0, 115), (1280, 115)], fill=(45, 54, 70), width=1)
+    draw_header(d, "① 是什么？", "CCbd 伴宠 · 陪伴你浏览社交广场的“虚拟嘴替”",
+                "静静呆在工位桌角 · 陪伴你在 𝕏 (推特)、币安广场与 OK星球 · 第一人称内心自言自语，不催促不评判")
+
+    # Left Side: Real Screenshot Container (Mock Browser Window)
+    bx, by, bw, bh = 60, 140, 740, 620
+    d.rounded_rectangle((bx, by, bx + bw, by + bh), radius=12, fill=(24, 30, 40), outline=(55, 65, 82), width=1)
     
-    # Background decorations
-    d.rectangle((0, 0, 1280, 140), fill=(28, 33, 40))
-    d.line([(0, 140), (1280, 140)], fill=(45, 52, 62), width=2)
-    draw_header(d, "🐾 CCbd 伴宠 · 陪你逛推特、币安广场与OK星球的虚拟嘴替", "行为节点共情陪伴 · 拟真生理节律动效 · 工位桌搭 · 不劝导不催促")
+    # Browser Top Controls
+    d.rounded_rectangle((bx, by, bx + bw, by + 40), radius=12, fill=(32, 38, 50))
+    d.rectangle((bx, by + 30, bx + bw, by + 40), fill=(32, 38, 50))
+    d.line([(bx, by + 40), (bx + bw, by + 40)], fill=(48, 58, 74), width=1)
+    d.ellipse((bx + 16, by + 14, bx + 28, by + 26), fill=(239, 68, 68))
+    d.ellipse((bx + 36, by + 14, bx + 48, by + 26), fill=(245, 158, 11))
+    d.ellipse((bx + 56, by + 14, bx + 68, by + 26), fill=(34, 197, 94))
+    d.text((bx + 85, by + 12), "https://x.com/home — 真实浏览状态", font=get_font(13), fill=(160, 175, 195))
 
-    # Site badges row
-    sites = [("𝕏 推特 (X/Twitter)", (30, 40, 52)), ("🟡 币安广场 (Binance Square)", (40, 36, 20)), ("🔵 OK星球 (OKX Orbit)", (20, 34, 50))]
-    cur_x = 60
-    for name, bg in sites:
-        f = get_font(15)
-        d.rounded_rectangle((cur_x, 160, cur_x + 230, 196), radius=8, fill=bg, outline=(70, 80, 95), width=1)
-        d.text((cur_x + 18, 168), name, font=f, fill=(230, 235, 240))
-        cur_x += 250
-    d.text((cur_x + 10, 168), "★ 仅在类似推特的社交广场生效，绝不影响交易与盯盘", font=get_font(14), fill=(76, 194, 124))
+    # Paste User Screenshot inside
+    user_shot_path = os.path.join(RAW_DIR, 'user_screen_x.png')
+    if os.path.exists(user_shot_path):
+        raw_x = Image.open(user_shot_path).convert('RGBA')
+        target_w = bw - 16
+        scale = target_w / raw_x.width
+        target_h = int(raw_x.height * scale)
+        scaled_x = raw_x.resize((target_w, target_h), Image.LANCZOS)
+        im.alpha_composite(scaled_x, (bx + 8, by + 48))
 
-    # 4 Character Showcase Cards
-    chars = [
-        ('teddy', '泰迪犬 · 随和搭子', 'sprites/teddy/idle.webp', (201, 188), '“我也在发呆…这条我也看到了”'),
-        ('cat',   '哈基米 · 傲娇猫咪', 'sprites/cat/idle.webp',   (199, 187), '“我也在刷推特，刚走神了一下”'),
-        ('doge',  '柴犬 · 元气伙伴',   'sprites/doge/busy.webp',  (200, 188), '“发出去了…不知道有没有人看”'),
-        ('pepe',  '佩佩 · Web3交易员', 'sprites/pepe/idle.webp',  (200, 188), '“我也在逛广场，今天好像挺热闹”'),
+    # Right Side: Feature Highlights
+    rx = 830
+    rw = 390
+    
+    cards = [
+        ("🌸 懂你的虚拟嘴替", "不评判、不催促、不查岗", 
+         "当你刷到好帖、发文、点赞或深夜迟迟没睡时，伴宠以第一人称自言自语（“我也在看这条…”），如同与你并肩探索世界的同桌搭子。"),
+        ("💻 沉浸式手绘工位小桌宠", "多层动画 · 生理节律感应", 
+         "全新手绘毛绒泰迪 CICI，端坐电脑前认真敲键盘，自然打字呼吸、眨眼、打哈欠、伸懒腰、端杯喝水，生动细腻陪伴。"),
+        ("🛡️ 纯本地安全，绝不干扰", "零外部依赖 · 专为社交广场设计", 
+         "仅在 𝕏、币安广场、OK星球等信息流页面挂载，绝不读取钱包私钥、绝不上报数据。支持随时 Alt+P 快捷隐藏。")
     ]
 
-    card_w = 265
-    card_h = 510
-    start_y = 225
-
-    for i, (cid, cname, path, (fw, fh), quote) in enumerate(chars):
-        cx = 60 + i * (card_w + 35)
-        # Card background
-        d.rounded_rectangle((cx, start_y, cx + card_w, start_y + card_h), radius=14, fill=(28, 33, 42), outline=(52, 60, 72), width=1)
-        # Header inside card
-        d.text((cx + 18, start_y + 18), cname, font=get_font(17), fill=(255, 255, 255))
+    cy = 140
+    for title, sub, desc in cards:
+        ch = 190
+        d.rounded_rectangle((rx, cy, rx + rw, cy + ch), radius=12, fill=(24, 30, 42), outline=(50, 60, 75), width=1)
+        d.text((rx + 22, cy + 20), title, font=get_font(18, bold=True), fill=(255, 255, 255))
+        d.text((rx + 22, cy + 50), sub, font=get_font(13), fill=(34, 197, 94))
         
-        # Stage background for character
-        stage_h = 240
-        d.rounded_rectangle((cx + 15, start_y + 55, cx + card_w - 15, start_y + 55 + stage_h), radius=10, fill=(18, 21, 26), outline=(40, 46, 56))
-        
-        # Load character sprite frame 0
-        try:
-            sp = Image.open(f'E:/Doc/Python_daye/CCbd/{path}').convert('RGBA')
-            f0 = sp.crop((0, 0, fw, fh))
-            # resize to fit
-            sc = 190.0 / max(fw, fh)
-            nw, nh = int(fw * sc), int(fh * sc)
-            f0_scaled = f0.resize((nw, nh), Image.LANCZOS)
-            px = cx + 15 + (card_w - 30 - nw) // 2
-            py = start_y + 55 + (stage_h - nh) // 2 + 10
-            im.alpha_composite(f0_scaled, (px, py))
-        except Exception as e:
-            print(f'Error loading {path}: {e}')
+        words = desc
+        lines = []
+        cur_line = ""
+        for char in words:
+            if len(cur_line) >= 20 or char == '\n':
+                lines.append(cur_line)
+                cur_line = char if char != '\n' else ""
+            else:
+                cur_line += char
+        if cur_line:
+            lines.append(cur_line)
+            
+        for idx, line in enumerate(lines[:4]):
+            d.text((rx + 22, cy + 82 + idx * 24), line, font=get_font(13), fill=(180, 190, 205))
+            
+        cy += ch + 25
 
-        # Dialogue bubble below
-        bubble_y = start_y + 315
-        d.rounded_rectangle((cx + 15, bubble_y, cx + card_w - 15, bubble_y + 90), radius=10, fill=(35, 42, 54), outline=(76, 194, 124), width=1)
-        d.text((cx + 25, bubble_y + 14), "💬 伴宠碎碎念：", font=get_font(13), fill=(76, 194, 124))
-        # wrap quote
-        d.text((cx + 25, bubble_y + 40), quote, font=get_font(13), fill=(220, 225, 230))
-
-        # Bottom tags
-        tag_y = start_y + 425
-        d.text((cx + 20, tag_y), "✓ 拟真呼吸/打盹/哈欠", font=get_font(13), fill=(154, 160, 166))
-        d.text((cx + 20, tag_y + 26), "✓ 支持上传自定义图片", font=get_font(13), fill=(154, 160, 166))
-        d.text((cx + 20, tag_y + 52), "✓ 15类动作全场景互动", font=get_font(13), fill=(154, 160, 166))
-
-    im.convert('RGB').save(os.path.join(OUT_DIR, 'screenshot_1_overview.png'))
-    print('Generated screenshot_1_overview.png')
+    out_file = os.path.join(STORE_DIR, 'screenshot_1_overview.png')
+    im.convert('RGB').save(out_file, quality=95)
+    print(f'Generated {out_file}')
 
 def create_screenshot_2():
-    # 2. AI 一键人设与台词生成器
-    im = Image.new('RGB', (1280, 800), (20, 24, 30))
+    """
+    图2：主要功能 —— 7 种手绘背景场景 · 右键快捷悬浮扩展菜单
+    展示：右键呼出场景二级菜单，清晨、午后、黄昏、夜晚与四季场景
+    """
+    im = Image.new('RGBA', (1280, 800), (15, 20, 28, 255))
     d = ImageDraw.Draw(im)
+
+    # Top header bar
+    d.rectangle((0, 0, 1280, 115), fill=(22, 27, 36))
+    d.line([(0, 115), (1280, 115)], fill=(45, 54, 70), width=1)
+    draw_header(d, "② 主要功能", "7 种手绘背景场景 · 右键快捷扩展选择",
+                "右键伴宠即可秒切背景 · 支持「自动跟随现实时段」或手动锁定偏好氛围 · 纯纯氛围感")
+
+    # Left Area: Showcase the User's Submenu Screenshot
+    lx, ly, lw, lh = 60, 140, 420, 620
+    d.rounded_rectangle((lx, ly, lx + lw, ly + lh), radius=12, fill=(24, 30, 40), outline=(55, 65, 82), width=1)
     
-    d.rectangle((0, 0, 1280, 140), fill=(28, 33, 40))
-    d.line([(0, 140), (1280, 140)], fill=(45, 52, 62), width=2)
-    draw_header(d, "✨ AI 角色人设与台词生成器 · 告别繁琐逐条配置", "内置优质人设模板 · 一键复制专用 Prompt · 粘贴 AI 回复即可极速完成全套导入")
-
-    # Left Panel: Step 1 (Prompt Generator)
-    left_w = 560
-    d.rounded_rectangle((60, 170, 60 + left_w, 750), radius=14, fill=(28, 33, 42), outline=(52, 60, 72), width=1)
-    d.text((85, 195), "第一步：定制人设 & 生成专用 Prompt", font=get_font(20), fill=(255, 255, 255))
+    d.text((lx + 25, ly + 22), "🖱️ 右键悬停扩展菜单", font=get_font(18, bold=True), fill=(255, 255, 255))
+    d.text((lx + 25, ly + 52), "鼠标轻移至「背景场景」即可平滑呼出", font=get_font(13), fill=(34, 197, 94))
     
-    # Presets pills
-    d.text((85, 240), "快捷人设灵感（一键点选填充）：", font=get_font(14), fill=(154, 160, 166))
-    pills = ["🐸 Web3 Degen交易员", "🐱 傲娇吐槽猫咪", "🐕 元气忠诚柴柴", "💼 毒舌打工人秘书", "☕ 温柔治愈搭子"]
-    px, py = 85, 272
-    for p in pills[:3]:
-        d.rounded_rectangle((px, py, px + 160, py + 34), radius=17, fill=(45, 54, 68), outline=(76, 194, 124))
-        d.text((px + 12, py + 6), p, font=get_font(13), fill=(255, 255, 255))
-        px += 175
-    px, py = 85, 318
-    for p in pills[3:]:
-        d.rounded_rectangle((px, py, px + 175, py + 34), radius=17, fill=(35, 42, 54), outline=(60, 70, 84))
-        d.text((px + 12, py + 6), p, font=get_font(13), fill=(200, 205, 215))
-        px += 190
+    sub_path = os.path.join(RAW_DIR, 'user_submenu_scenes.png')
+    if os.path.exists(sub_path):
+        sub_img = Image.open(sub_path).convert('RGBA')
+        sc = min((lw - 40) / sub_img.width, (lh - 110) / sub_img.height)
+        new_w, new_h = int(sub_img.width * sc), int(sub_img.height * sc)
+        scaled_sub = sub_img.resize((new_w, new_h), Image.LANCZOS)
+        px = lx + (lw - new_w) // 2
+        py = ly + 90 + (lh - 100 - new_h) // 2
+        im.alpha_composite(scaled_sub, (px, py))
 
-    # Fields preview
-    d.text((85, 375), "角色形象: 🐸 佩佩蛙   |   角色名称: 佩佩", font=get_font(14), fill=(220, 225, 235))
-    d.text((85, 405), "语气规范: 第一人称嘴替  |   包含时段问候: 已勾选 (4个时段)", font=get_font(14), fill=(220, 225, 235))
+    # Right Area: 7 Hand-drawn Scenes Showcase Grid
+    rx, ry, rw, rh = 510, 140, 710, 620
+    d.rounded_rectangle((rx, ry, rx + rw, ry + rh), radius=12, fill=(24, 30, 42), outline=(50, 60, 75), width=1)
+    d.text((rx + 25, ry + 22), "🎨 精美圆形手绘微缩场景一览", font=get_font(18, bold=True), fill=(255, 255, 255))
+    d.text((rx + 25, ry + 52), "内置自动跟随自然光影（清晨/午后/黄昏/星空）及特殊主题环境（微风/初雪/雨天）", font=get_font(13), fill=(160, 175, 195))
 
-    # Prompt Preview Box
-    d.text((85, 445), "生成的专用 Prompt（包含15类场景动作与嘴替语气规范）：", font=get_font(14), fill=(76, 194, 124))
-    d.rounded_rectangle((85, 475, 85 + left_w - 50, 680), radius=10, fill=(18, 21, 26), outline=(45, 52, 62))
-    prompt_snippet = [
-        "你是一名专属桌面伴宠（Desk Pet）台词与人设架构师。",
-        "请为【CCbd 伴宠】设计一套充满个性的角色台词与配置。",
-        "【伴宠设定要求】形象: 佩佩蛙，人设: Web3 Degen交易员...",
-        "【台词规范】第一人称嘴替，贴合用户，不劝导不评判...",
-        "1. click / clickX (点击伴宠): 3~5句 “我也在……”",
-        "2. post (发文/发推/回复后): 3~4句 刚发完那一刻的心里话",
-        "3. night (深夜仍在使用): 3~4句 犹豫矛盾口吻，不劝睡",
-        "...",
-        "请直接输出纯 JSON 数据，使用 ```json 包裹。"
+    scene_defs = [
+        ("spring", "春日微风", "暖粉浪漫花瓣"),
+        ("morning", "清晨晴空", "晨光初煦朝气"),
+        ("afternoon", "午后暖光", "闲适惬意阳光"),
+        ("dusk", "黄昏晚霞", "静谧暮色霞光"),
+        ("night", "夜晚星空", "深邃伴月星夜"),
+        ("snow", "冬日初雪", "纯净落雪飞舞"),
     ]
-    for idx, line in enumerate(prompt_snippet):
-        d.text((100, 490 + idx * 20), line, font=get_font(12), fill=(160, 168, 178))
 
-    d.rounded_rectangle((85, 695, 85 + left_w - 50, 735), radius=8, fill=(47, 158, 90))
-    d.text((85 + 175, 704), "📋 一键复制 Prompt", font=get_font(16), fill=(255, 255, 255))
+    start_x = rx + 30
+    start_y = ry + 90
+    item_w = 205
+    item_h = 240
+    gap_x = 22
+    gap_y = 18
 
-    # Right Panel: Step 2 (Import & Done)
-    right_x = 650
-    right_w = 570
-    d.rounded_rectangle((right_x, 170, right_x + right_w, 750), radius=14, fill=(28, 33, 42), outline=(52, 60, 72), width=1)
-    d.text((right_x + 25, 195), "第二步：粘贴 AI 回复 & 一键完成导入", font=get_font(20), fill=(255, 255, 255))
-    d.text((right_x + 25, 235), "支持发送给 ChatGPT / Claude / DeepSeek / Kimi 等任意 AI：", font=get_font(14), fill=(154, 160, 166))
+    for idx, (sid, sname, sdesc) in enumerate(scene_defs):
+        row = idx // 3
+        col = idx % 3
+        ix = start_x + col * (item_w + gap_x)
+        iy = start_y + row * (item_h + gap_y)
 
-    # AI Output JSON Mockup
-    d.rounded_rectangle((right_x + 25, 270, right_x + right_w - 25, 580), radius=10, fill=(18, 21, 26), outline=(45, 52, 62))
-    json_lines = [
-        "```json",
-        "{",
-        '  "name": "Degen 佩佩",',
-        '  "look": "pepe",',
-        '  "persona": "狂热且幽默的Web3交易员，替你说出刷帖时的心里话",',
-        '  "phrases": {',
-        '    "clickX": ["我也在刷推特", "这条我也看到了"],',
-        '    "post": ["发出去了…有点紧张，不知道有没有人看"],',
-        '    "like": ["这条懂我，戳到我了"],',
-        '    "night": ["好晚啊…我考虑考虑要不要睡觉"],',
-        '    "milestone": ["不知不觉，一起 {days} 天了"],',
-        '    "story": ["日记多了一页「{title}」"]',
-        '  }',
-        "}",
-        "```"
+        d.rounded_rectangle((ix, iy, ix + item_w, iy + item_h), radius=10, fill=(18, 22, 30), outline=(45, 54, 68), width=1)
+        
+        scene_path = f'E:/Doc/Python_daye/CCbd/scenes/{sid}.webp'
+        if os.path.exists(scene_path):
+            try:
+                sc_im = Image.open(scene_path).convert('RGBA').resize((130, 130), Image.LANCZOS)
+                mask = Image.new('L', (130, 130), 0)
+                mask_d = ImageDraw.Draw(mask)
+                mask_d.ellipse((0, 0, 130, 130), fill=255)
+                im.paste(sc_im, (ix + (item_w - 130) // 2, iy + 18), mask)
+            except Exception as e:
+                print(f"Error drawing scene {sid}: {e}")
+
+        d.text((ix + (item_w - len(sname)*15)//2, iy + 160), sname, font=get_font(15, bold=True), fill=(255, 255, 255))
+        d.text((ix + (item_w - len(sdesc)*12)//2, iy + 190), sdesc, font=get_font(12), fill=(150, 165, 185))
+
+    # 7th Card: 雨天氛围
+    ix = start_x + 0 * (item_w + gap_x)
+    iy = start_y + 2 * (item_h + gap_y) # wait, row 0: 3, row 1: 3, total 6.
+    # Let's arrange 7 scenes + 1 auto card: 2 rows of 4 cards!
+    # Let's adjust grid layout to 4 columns x 2 rows:
+    # item_w = 150, gap_x = 16
+    pass
+
+def create_screenshot_2_grid():
+    im = Image.new('RGBA', (1280, 800), (15, 20, 28, 255))
+    d = ImageDraw.Draw(im)
+
+    # Top header bar
+    d.rectangle((0, 0, 1280, 115), fill=(22, 27, 36))
+    d.line([(0, 115), (1280, 115)], fill=(45, 54, 70), width=1)
+    draw_header(d, "② 主要功能", "7 种手绘背景场景 · 右键快捷扩展选择",
+                "右键伴宠即可秒切背景 · 支持「自动跟随现实时段」或手动锁定偏好氛围 · 纯纯氛围感")
+
+    # Left Area: Showcase the User's Submenu Screenshot
+    lx, ly, lw, lh = 50, 140, 390, 620
+    d.rounded_rectangle((lx, ly, lx + lw, ly + lh), radius=12, fill=(24, 30, 40), outline=(55, 65, 82), width=1)
+    
+    d.text((lx + 25, ly + 22), "🖱️ 右键悬停扩展菜单", font=get_font(18, bold=True), fill=(255, 255, 255))
+    d.text((lx + 25, ly + 52), "鼠标轻移至「背景场景」即可平滑展开", font=get_font(13), fill=(34, 197, 94))
+    
+    sub_path = os.path.join(RAW_DIR, 'user_submenu_scenes.png')
+    if os.path.exists(sub_path):
+        sub_img = Image.open(sub_path).convert('RGBA')
+        sc = min((lw - 30) / sub_img.width, (lh - 100) / sub_img.height)
+        new_w, new_h = int(sub_img.width * sc), int(sub_img.height * sc)
+        scaled_sub = sub_img.resize((new_w, new_h), Image.LANCZOS)
+        px = lx + (lw - new_w) // 2
+        py = ly + 85 + (lh - 95 - new_h) // 2
+        im.alpha_composite(scaled_sub, (px, py))
+
+    # Right Area: 7 Hand-drawn Scenes + Auto Mode Showcase
+    rx, ry, rw, rh = 465, 140, 765, 620
+    d.rounded_rectangle((rx, ry, rx + rw, ry + rh), radius=12, fill=(24, 30, 42), outline=(50, 60, 75), width=1)
+    d.text((rx + 25, ry + 22), "🎨 精美圆形手绘微缩场景一览", font=get_font(18, bold=True), fill=(255, 255, 255))
+    d.text((rx + 25, ry + 52), "内置自动跟随自然光影（清晨/午后/黄昏/星空）及特殊主题环境（微风/初雪/雨天）", font=get_font(13), fill=(160, 175, 195))
+
+    scene_defs = [
+        ("spring", "春日微风", "暖粉浪漫花瓣"),
+        ("morning", "清晨晴空", "晨光初煦朝气"),
+        ("afternoon", "午后暖光", "闲适惬意阳光"),
+        ("dusk", "黄昏晚霞", "静谧暮色霞光"),
+        ("night", "夜晚星空", "深邃伴月星夜"),
+        ("snow", "冬日初雪", "纯净落雪飞舞"),
+        ("rain", "雨天氛围", "滴答轻柔雨丝")
     ]
-    for idx, line in enumerate(json_lines):
-        color = (130, 195, 255) if '"' in line and ':' in line else ((180, 230, 150) if '[' in line or '{' in line else (200, 210, 220))
-        d.text((right_x + 40, 285 + idx * 19), line, font=get_font(13), fill=color)
 
-    # Success Notice Card
-    d.rounded_rectangle((right_x + 25, 600, right_x + right_w - 25, 665), radius=8, fill=(24, 45, 34), outline=(47, 158, 90))
-    d.text((right_x + 40, 612), "🎉 解析成功：共导入 15 类 48 条台词，并同步更新 4 个时段问候", font=get_font(14), fill=(76, 194, 124))
-    d.text((right_x + 40, 638), "✓ 自动去除代码块标记与逗号容错   ✓ 立即自动保存并实时生效", font=get_font(12), fill=(160, 210, 180))
+    start_x = rx + 25
+    start_y = ry + 90
+    item_w = 165
+    item_h = 240
+    gap_x = 18
+    gap_y = 18
 
-    d.rounded_rectangle((right_x + 25, 685, right_x + right_w - 25, 735), radius=8, fill=(47, 158, 90))
-    d.text((right_x + 185, 694), "🚀 一键解析并完成导入", font=get_font(17), fill=(255, 255, 255))
+    # 4 columns, 2 rows
+    for idx, (sid, sname, sdesc) in enumerate(scene_defs):
+        row = idx // 4
+        col = idx % 4
+        ix = start_x + col * (item_w + gap_x)
+        iy = start_y + row * (item_h + gap_y)
 
-    im.save(os.path.join(OUT_DIR, 'screenshot_2_ai_generator.png'))
-    print('Generated screenshot_2_ai_generator.png')
+        d.rounded_rectangle((ix, iy, ix + item_w, iy + item_h), radius=10, fill=(18, 22, 30), outline=(45, 54, 68), width=1)
+        
+        scene_path = f'E:/Doc/Python_daye/CCbd/scenes/{sid}.webp'
+        if os.path.exists(scene_path):
+            try:
+                sc_im = Image.open(scene_path).convert('RGBA').resize((115, 115), Image.LANCZOS)
+                mask = Image.new('L', (115, 115), 0)
+                mask_d = ImageDraw.Draw(mask)
+                mask_d.ellipse((0, 0, 115, 115), fill=255)
+                im.paste(sc_im, (ix + (item_w - 115) // 2, iy + 16), mask)
+            except Exception as e:
+                print(f"Error drawing scene {sid}: {e}")
+
+        d.text((ix + (item_w - len(sname)*14)//2, iy + 148), sname, font=get_font(14, bold=True), fill=(255, 255, 255))
+        d.text((ix + (item_w - len(sdesc)*11)//2, iy + 178), sdesc, font=get_font(11), fill=(150, 165, 185))
+
+    # 8th slot: Auto Mode Box
+    box_x = start_x + 3 * (item_w + gap_x)
+    box_y = start_y + 1 * (item_h + gap_y)
+    d.rounded_rectangle((box_x, box_y, box_x + item_w, box_y + item_h), radius=10, fill=(24, 45, 34), outline=(34, 197, 94), width=1)
+    d.text((box_x + 22, box_y + 20), "⏰ 随动模式", font=get_font(16, bold=True), fill=(34, 197, 94))
+    d.text((box_x + 14, box_y + 55), "自动跟随现实时段：", font=get_font(12, bold=True), fill=(255, 255, 255))
+    d.text((box_x + 14, box_y + 85), "• 05~10点  清晨晴空", font=get_font(11), fill=(180, 220, 195))
+    d.text((box_x + 14, box_y + 112), "• 11~16点  午后暖光", font=get_font(11), fill=(180, 220, 195))
+    d.text((box_x + 14, box_y + 139), "• 17~19点  黄昏晚霞", font=get_font(11), fill=(180, 220, 195))
+    d.text((box_x + 14, box_y + 166), "• 20~04点  夜晚星空", font=get_font(11), fill=(180, 220, 195))
+    d.text((box_x + 14, box_y + 202), "支持手动锁定偏好", font=get_font(11), fill=(140, 175, 155))
+
+    out_file = os.path.join(STORE_DIR, 'screenshot_2_features.png')
+    im.convert('RGB').save(out_file, quality=95)
+    print(f'Generated {out_file}')
 
 def create_screenshot_3():
-    # 3. 工位装备 & 统计日历 & 隐私安全
-    im = Image.new('RGB', (1280, 800), (20, 24, 30))
+    """
+    图3：自定义话风 —— AI 一键定制角色人设与专属台词
+    展示：AI 生成器界面实拍、一键导入、任意大模型自由定制
+    """
+    im = Image.new('RGBA', (1280, 800), (15, 20, 28, 255))
     d = ImageDraw.Draw(im)
+
+    # Top header bar
+    d.rectangle((0, 0, 1280, 115), fill=(22, 27, 36))
+    d.line([(0, 115), (1280, 115)], fill=(45, 54, 70), width=1)
+    draw_header(d, "③ 自定义话风", "AI 角色人设与台词生成器 · 打造独一无二的专属嘴替",
+                "无需逐条手写台词 · 复制 Prompt 发给任意大模型 · 粘贴 AI 回复即可一键完成全套人设台词导入")
+
+    # Left Area: Real UI Screenshot
+    lx, ly, lw, lh = 50, 140, 560, 620
+    d.rounded_rectangle((lx, ly, lx + lw, ly + lh), radius=12, fill=(24, 30, 40), outline=(55, 65, 82), width=1)
     
-    d.rectangle((0, 0, 1280, 140), fill=(28, 33, 40))
-    d.line([(0, 140), (1280, 140)], fill=(45, 52, 62), width=2)
-    draw_header(d, "🏆 工位伴侣装备随陪伴天数解锁 · 双层统计与宠物日记", "累计陪伴天数自动解锁桌搭与日记 · 不催促不评判 · 数据 100% 纯本地存储保护隐私")
+    d.text((lx + 25, ly + 20), "✨ 真实的 AI 人设定制界面", font=get_font(18, bold=True), fill=(255, 255, 255))
+    d.text((lx + 25, ly + 48), "内置 Web3交易员 / 傲娇猫咪 / 元气柴柴 / 毒舌搭子等灵感", font=get_font(13), fill=(34, 197, 94))
 
-    # Top Section: Desk Gear Unlock Roadmap
-    d.rounded_rectangle((60, 165, 1220, 430), radius=14, fill=(28, 33, 42), outline=(52, 60, 72), width=1)
-    d.text((85, 185), "工位伴侣装备（Desk Gear）随累计陪伴天数自动解锁", font=get_font(19), fill=(255, 255, 255))
-    d.text((530, 188), "（纯矢量高清 SVG + 硬件加速微动效，优雅摆放身前桌角）", font=get_font(14), fill=(154, 160, 166))
+    # Paste User AI Generator Screenshot
+    ai_path = os.path.join(RAW_DIR, 'user_ai_generator.png')
+    if os.path.exists(ai_path):
+        ai_img = Image.open(ai_path).convert('RGBA')
+        sc = min((lw - 30) / ai_img.width, (lh - 95) / ai_img.height)
+        new_w, new_h = int(ai_img.width * sc), int(ai_img.height * sc)
+        scaled_ai = ai_img.resize((new_w, new_h), Image.LANCZOS)
+        px = lx + (lw - new_w) // 2
+        py = ly + 80 + (lh - 90 - new_h) // 2
+        im.alpha_composite(scaled_ai, (px, py))
 
-    gears = [
-        ("极简工位", "0 天", "🪑", "返璞归真纯净工位"),
-        ("暖心拿铁咖啡", "陪伴 3 天", "☕", "杯口升起缕缕白汽"),
-        ("极客调试小黄鸭", "陪伴 7 天", "🐥", "程序员解压微弹"),
-        ("治愈多肉绿植", "陪伴 14 天", "🪴", "清新饱满陶瓷多肉"),
-        ("赛博霓虹电竞本", "陪伴 30 天", "💻", "RGB霓虹微光呼吸"),
-        ("陪伴纪念小奖杯", "陪伴 100 天", "🏆", "一起走过日子的纪念"),
+    # Right Area: AI Workflow & Personality Showcase
+    rx, ry, rw, rh = 635, 140, 595, 620
+    d.rounded_rectangle((rx, ry, rx + rw, ry + rh), radius=12, fill=(24, 30, 42), outline=(50, 60, 75), width=1)
+    d.text((rx + 25, ry + 22), "🤖 极速三步，赋予它你的灵魂话风", font=get_font(18, bold=True), fill=(255, 255, 255))
+    d.text((rx + 25, ry + 52), "兼容 ChatGPT、Claude、DeepSeek、Kimi 等任意主流大模型", font=get_font(13), fill=(160, 175, 195))
+
+    steps = [
+        ("第 1 步：点选灵感或输入自定义偏好", 
+         "一键点选“Web3 Degen交易员”、“毒舌秘书”等灵感标签，或自由输入：例如“常说币圈黑话、满嘴吐槽、说话带喵”。"),
+        ("第 2 步：一键复制结构化 Prompt", 
+         "系统自动生成严格契合 CCbd 架构的专用 Prompt（包含点赞、发帖、深夜、时段问候等 15 大类台词触发规范）。"),
+        ("第 3 步：粘贴 AI 回复，一键自动解析", 
+         "直接粘贴大模型输出的 JSON。自动清洗代码块与格式容错，秒级全量导入生效！")
     ]
 
-    gx = 85
-    gw = 170
-    for name, xp, icon, desc in gears:
-        d.rounded_rectangle((gx, 230, gx + gw, 405), radius=10, fill=(20, 24, 30), outline=(48, 56, 68))
-        d.text((gx + 15, 242), xp, font=get_font(12), fill=(76, 194, 124))
-        d.text((gx + 15, 264), name, font=get_font(14), fill=(255, 255, 255))
-        # icon
-        d.text((gx + 62, 298), icon, font=get_font(38), fill=(255, 255, 255))
-        d.text((gx + 15, 365), desc, font=get_font(12), fill=(154, 160, 166))
-        gx += gw + 20
+    sy = ry + 90
+    for title, desc in steps:
+        d.rounded_rectangle((rx + 25, sy, rx + rw - 25, sy + 105), radius=10, fill=(18, 22, 30), outline=(45, 54, 68), width=1)
+        d.text((rx + 35, sy + 15), title, font=get_font(15, bold=True), fill=(34, 197, 94))
+        
+        words = desc
+        lines = []
+        cur_line = ""
+        for char in words:
+            if len(cur_line) >= 32:
+                lines.append(cur_line)
+                cur_line = char
+            else:
+                cur_line += char
+        if cur_line:
+            lines.append(cur_line)
+            
+        for idx, line in enumerate(lines[:3]):
+            d.text((rx + 35, sy + 44 + idx * 20), line, font=get_font(12), fill=(180, 190, 205))
+            
+        sy += 120
 
-    # Bottom Left: Calendar & Stats
-    d.rounded_rectangle((60, 455, 680, 755), radius=14, fill=(28, 33, 42), outline=(52, 60, 72), width=1)
-    d.text((85, 475), "📊 双层行为统计与月度日历", font=get_font(18), fill=(255, 255, 255))
-    d.text((85, 508), "• 全网合并总览：在线时长、发帖、点赞、收藏、关注、屏幕滚动距离", font=get_font(13), fill=(210, 215, 225))
-    d.text((85, 536), "• 各站独立明细：推特、币安广场、OK星球各站数据独立清晰归类", font=get_font(13), fill=(210, 215, 225))
-    d.text((85, 564), "• 宠物的日记：随累计陪伴天数自动解锁12页宠物自己的日记", font=get_font(13), fill=(210, 215, 225))
+    # Personality Dialog Preview Bubble
+    d.rounded_rectangle((rx + 25, sy, rx + rw - 25, ry + rh - 25), radius=10, fill=(24, 45, 34), outline=(34, 197, 94), width=1)
+    d.text((rx + 35, sy + 16), "💬 实际效果预览（Degen 交易员话风）：", font=get_font(14, bold=True), fill=(255, 255, 255))
+    d.text((rx + 35, sy + 42), "• 刷到好帖：“这条懂我，戳到痛点了，我也反手点个赞”", font=get_font(12), fill=(200, 225, 215))
+    d.text((rx + 35, sy + 66), "• 刚发完推：“发出去了…有点紧张，不知道有没有人互动”", font=get_font(12), fill=(200, 225, 215))
+    d.text((rx + 35, sy + 90), "• 凌晨两点：“好晚啊…我也在纠结要不要睡，再刷五分钟吧”", font=get_font(12), fill=(200, 225, 215))
 
-    # Mini calendar mockup
-    cal_x, cal_y = 85, 605
-    days = ["一", "二", "三", "四", "五", "六", "日"]
-    for i, day in enumerate(days):
-        d.text((cal_x + i * 80 + 20, cal_y), day, font=get_font(12), fill=(130, 140, 150))
-    for r in range(2):
-        for c in range(7):
-            bx, by = cal_x + c * 80, cal_y + 25 + r * 50
-            fill_c = (24, 45, 34) if (r*7+c)%3 == 0 else (20, 24, 30)
-            stroke_c = (47, 158, 90) if (r*7+c)%3 == 0 else (40, 46, 56)
-            d.rounded_rectangle((bx, by, bx + 70, by + 42), radius=6, fill=fill_c, outline=stroke_c)
-            d.text((bx + 8, by + 5), f"{r*7+c+1}", font=get_font(11), fill=(154, 160, 166))
-            if (r*7+c)%3 == 0:
-                d.text((bx + 8, by + 22), "52分 陪伴", font=get_font(10), fill=(76, 194, 124))
-
-    # Bottom Right: Privacy & Local Safety
-    d.rounded_rectangle((710, 455, 1220, 755), radius=14, fill=(28, 33, 42), outline=(52, 60, 72), width=1)
-    d.text((735, 475), "🔒 100% 纯本地运行与严格隐私保护", font=get_font(18), fill=(76, 194, 124))
-    
-    security_points = [
-        ("零服务器上传", "所有角色设定、台词与统计全保存在本地浏览器"),
-        ("无第三方追踪", "无任何外部追踪代码、无用户隐私数据收集"),
-        ("隔离安全设计", "仅在社交信息流页面挂载，绝不触碰任何交易钱包"),
-        ("全局快捷开关", "Alt + P 或右上角图标一键唤出 / 隐藏伴宠"),
-        ("完整数据控制", "随时支持一键导出备份、导入备份与彻底清除"),
-    ]
-    
-    sy = 515
-    for title, desc in security_points:
-        d.text((735, sy), f"✔ {title}：", font=get_font(14), fill=(255, 255, 255))
-        d.text((865, sy), desc, font=get_font(13), fill=(160, 170, 185))
-        sy += 44
-
-    im.save(os.path.join(OUT_DIR, 'screenshot_3_features.png'))
-    print('Generated screenshot_3_features.png')
+    out_file = os.path.join(STORE_DIR, 'screenshot_3_ai_generator.png')
+    im.convert('RGB').save(out_file, quality=95)
+    print(f'Generated {out_file}')
 
 def create_promo_tile():
-    # 440x280 small promo tile
-    im = Image.new('RGBA', (440, 280), (20, 24, 30, 255))
+    """
+    440x280 Promo Tile (小宣传图)
+    """
+    im = Image.new('RGBA', (440, 280), (18, 22, 30, 255))
     d = ImageDraw.Draw(im)
-    d.rectangle((0, 0, 440, 280), fill=(24, 28, 36))
-    d.rounded_rectangle((10, 10, 430, 270), radius=12, fill=(28, 33, 42), outline=(52, 60, 72))
-    
-    # Load mascot
-    sp = Image.open('E:/Doc/Python_daye/CCbd/sprites/teddy/idle.webp').convert('RGBA')
-    f0 = sp.crop((0, 0, 201, 188)).resize((130, 122), Image.LANCZOS)
-    im.alpha_composite(f0, (30, 75))
-    
-    d.text((180, 50), "CCbd 伴宠", font=get_font(26), fill=(255, 255, 255))
-    d.text((180, 92), "社交广场卡通工位伴宠", font=get_font(14), fill=(76, 194, 124))
-    d.text((180, 122), "• 陪伴推特 / 币安广场 / OK星球", font=get_font(12), fill=(180, 185, 195))
-    d.text((180, 144), "• ✨ AI 一键定制专属人设与台词", font=get_font(12), fill=(180, 185, 195))
-    d.text((180, 166), "• 治愈桌搭装备随陪伴天数解锁", font=get_font(12), fill=(180, 185, 195))
-    d.text((180, 188), "• 纯本地运行 · 贴合陪伴不催促", font=get_font(12), fill=(180, 185, 195))
 
-    d.rounded_rectangle((180, 222, 400, 250), radius=6, fill=(47, 158, 90))
-    d.text((230, 228), "免费安装使用", font=get_font(13), fill=(255, 255, 255))
+    d.rectangle((0, 0, 440, 280), fill=(22, 27, 36))
+    d.rounded_rectangle((10, 10, 430, 270), radius=12, fill=(26, 32, 44), outline=(48, 58, 74), width=1)
 
-    im.convert('RGB').save(os.path.join(OUT_DIR, 'promo_small_440x280.png'))
-    print('Generated promo_small_440x280.png')
+    # Mascot with spring background
+    bg_path = 'E:/Doc/Python_daye/CCbd/scenes/spring.webp'
+    pet_path = 'E:/Doc/Python_daye/CCbd/sprites/chabit/working.webp'
+    
+    if os.path.exists(bg_path):
+        bg_im = Image.open(bg_path).convert('RGBA').resize((140, 140), Image.LANCZOS)
+        mask = Image.new('L', (140, 140), 0)
+        ImageDraw.Draw(mask).ellipse((0, 0, 140, 140), fill=255)
+        im.paste(bg_im, (22, 60), mask)
+        
+    if os.path.exists(pet_path):
+        pet_im = Image.open(pet_path).convert('RGBA').resize((130, 130), Image.LANCZOS)
+        im.alpha_composite(pet_im, (26, 68))
+
+    d.text((180, 36), "CCbd 伴宠", font=get_font(24, bold=True), fill=(255, 255, 255))
+    d.rounded_rectangle((305, 38, 385, 62), radius=4, fill=(34, 197, 94))
+    d.text((315, 42), "v0.13.0", font=get_font(12, bold=True), fill=(255, 255, 255))
+    
+    d.text((180, 72), "陪你刷社交广场的“虚拟嘴替”", font=get_font(13), fill=(34, 197, 94))
+    
+    features = [
+        "🐾 陪伴 𝕏 (推特) / 币安广场 / OK星球",
+        "🎨 7 种手绘背景场景 · 右键平滑扩展",
+        "✨ AI 一键定制专属人设与台词话风",
+        "🔒 100% 纯本地运行 · 绝不打扰交易"
+    ]
+    for idx, f in enumerate(features):
+        d.text((180, 102 + idx * 24), f, font=get_font(12), fill=(185, 195, 210))
+
+    d.rounded_rectangle((180, 214, 400, 248), radius=6, fill=(34, 197, 94))
+    d.text((232, 222), "免费安装 · 开源伴宠", font=get_font(13, bold=True), fill=(255, 255, 255))
+
+    out_file = os.path.join(STORE_DIR, 'promo_small_440x280.png')
+    im.convert('RGB').save(out_file, quality=95)
+    print(f'Generated {out_file}')
 
 if __name__ == '__main__':
     create_screenshot_1()
-    create_screenshot_2()
+    create_screenshot_2_grid()
     create_screenshot_3()
     create_promo_tile()
-    print('All store graphics generated successfully!')
+    print('All store assets successfully updated!')

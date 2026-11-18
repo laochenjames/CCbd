@@ -63,6 +63,11 @@ const XPET = {
     ['clickX', '点击宠物 · 在推特上'],
     ['clickBinance', '点击宠物 · 在币安广场'],
     ['clickOkx', '点击宠物 · 在 OK星球'],
+    ['clickWeibo', '点击宠物 · 在微博上'],
+    ['clickZhihu', '点击宠物 · 在知乎上'],
+    ['clickXhs', '点击宠物 · 在小红书上'],
+    ['clickBilibili', '点击宠物 · 在 B 站上'],
+    ['clickDouyin', '点击宠物 · 在抖音上'],
     ['clickEarly', '点击宠物（今天刚开始，在线不到 3 分钟）'],
     ['post', '发文 / 回复'],
     ['like', '点赞（出现概率很低，不会每次都说）'],
@@ -83,6 +88,11 @@ const XPET = {
     clickX: ['我也在刷推特', '这条我也看到了', '我也在翻时间线', '推特今天好像挺热闹'],
     clickBinance: ['我也在看广场', '我也在翻帖子', '广场今天好像挺吵的', '我也在看行情，嗯'],
     clickOkx: ['我也在逛星球', '我也在看这边的帖子', '星球今天有点热闹', '我也在刷'],
+    clickWeibo: ['我也在刷微博', '热搜我也看到了', '我也在翻首页', '微博今天好像挺热闹'],
+    clickZhihu: ['我也在看这个问题', '我也在翻回答', '这个问题我也想了一会儿', '知乎今天有点安静'],
+    clickXhs: ['我也在翻笔记', '这篇我也点开了', '我也在逛首页', '小红书今天挺热闹的'],
+    clickBilibili: ['我也在看视频', '这个我也想看完', '我也在刷首页', 'B站今天好像挺热闹'],
+    clickDouyin: ['我也在刷', '再刷一个就停（大概）', '这个我也停下来看了', '我也在滑'],
     clickEarly: ['刚坐下，我也是', '我也才刚到', '先看看今天有什么'],
     post: ['发出去了…有点紧张', '发了，不知道有没有人看', '写完了，松了口气', '发出去就不想了'],
     like: ['这条懂我', '嗯，赞一下', '说得对啊', '戳到我了'],
@@ -96,12 +106,17 @@ const XPET = {
     unlock: ['桌上多了一件 {name}', '{name}，不知道什么时候放这儿的'],
   },
   // 画像向导里的「语气」：懒散（默认，即上面的 DEFAULT_PHRASES）和俏皮。只覆盖和点击、行为有关的这几组台词
-  VOICE_KEYS: ['click', 'clickX', 'clickBinance', 'clickOkx', 'clickEarly', 'post', 'like', 'bookmark', 'repost', 'follow', 'night', 'back'],
+  VOICE_KEYS: ['click', 'clickX', 'clickBinance', 'clickOkx', 'clickWeibo', 'clickZhihu', 'clickXhs', 'clickBilibili', 'clickDouyin', 'clickEarly', 'post', 'like', 'bookmark', 'repost', 'follow', 'night', 'back'],
   VOICE_PLAYFUL: {
     click: ['嘿嘿，我也在这儿～', '被发现啦，我在摸鱼', '我也在偷看屏幕', '咕噜…刚在想事情'],
     clickX: ['我也在刷推特，嘿嘿', '我也在蹲时间线', '有啥新鲜事吗，我也想看', '我也在翻时间线，嘿嘿'],
     clickBinance: ['我也在逛广场～', '我也在看行情，心跳加速', '广场今天好热闹呀', '我也在潜水'],
     clickOkx: ['我也在逛星球～', '我也在围观', '星球今天好热闹呀', '我也在潜水'],
+    clickWeibo: ['我也在刷微博～', '热搜瓜好大，我也看看', '微博今天好热闹呀'],
+    clickZhihu: ['我也在看回答～', '这个问题有点意思', '知乎今天大家都在认真写呢'],
+    clickXhs: ['我也在翻笔记～', '这篇我也点开看看', '小红书今天好热闹呀'],
+    clickBilibili: ['我也在看视频～', '这个我也想看完', 'B站今天好热闹呀'],
+    clickDouyin: ['我也在刷～', '再刷一个就停（大概）', '这个我也在看'],
     clickEarly: ['刚坐好，我也是～', '才刚开始，先摸会儿鱼', '嗨，我也刚到'],
     post: ['发出去啦，好紧张！', '发了发了，快有人来看！', '写完啦，松一口气～', '发出去就不想了，嘿嘿'],
     like: ['这条太懂我了', '赞！忍不住', '说到心坎里了', '戳到了～'],
@@ -160,15 +175,303 @@ const XPET = {
   ACTIVITIES: [['book', '📖 看书'], ['phone', '📱 玩手机'], ['laptop', '💻 用电脑'], ['none', '不拿东西']],
   PROP_EMOJI: { book: '📖', phone: '📱', laptop: '💻' },
 
-  SITE_NAMES: {
-    x: '𝕏 推特',
-    binance: '🟡 币安广场',
-    okx: '🔵 OK星球',
+  SITES: [
+    {
+      key: 'x',
+      name: '推特',
+      icon: '𝕏',
+      level: 'L2',
+      generic: false,
+      clickPool: 'clickX',
+      ctrlEnterPost: true,
+      matchHost: (host) => host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com'),
+      allowPath: (path) => !XPET.X_EXCLUDE_PATH.test(path),
+    },
+    {
+      key: 'binance',
+      name: '币安广场',
+      icon: '🟡',
+      level: 'L2',
+      generic: true,
+      clickPool: 'clickBinance',
+      ctrlEnterPost: true,
+      matchHost: (host) => host.includes('binance.com'),
+      allowPath: (path) => !XPET.FIN_PATH.test(path) && (path.includes('/square') || path.includes('/feed')),
+    },
+    {
+      key: 'okx',
+      name: 'OK星球',
+      icon: '🔵',
+      level: 'L2',
+      generic: true,
+      clickPool: 'clickOkx',
+      ctrlEnterPost: true,
+      matchHost: (host) => host.includes('okx.') || host.includes('ouyi.'),
+      allowPath: (path) => !XPET.FIN_PATH.test(path) && /\/(orbit|square|community|feed|social|insights|discover|post|article)(\/|$|-)/.test(path),
+    },
+    {
+      key: 'weibo',
+      name: '微博',
+      icon: '🔴',
+      level: 'L2',
+      generic: false,
+      clickPool: 'clickWeibo',
+      ctrlEnterPost: false,
+      matchHost: (host) => host === 'weibo.com' || (host.endsWith('.weibo.com') && !/^(passport|login|pay|vip|open|account|card)\./.test(host)),
+      allowPath: (path) => !XPET.WEIBO_EXCLUDE_PATH.test(path),
+    },
+    {
+      key: 'zhihu',
+      name: '知乎',
+      icon: '🟣',
+      level: 'L2',
+      generic: false,
+      clickPool: 'clickZhihu',
+      ctrlEnterPost: false,
+      matchHost: (host) => host === 'zhihu.com' || (host.endsWith('.zhihu.com') && !/^(passport|login|pay|vip|open)\./.test(host)),
+      allowPath: (path) => !XPET.ZHIHU_EXCLUDE_PATH.test(path),
+    },
+    {
+      key: 'xhs',
+      name: '小红书',
+      icon: '📕',
+      level: 'L1',
+      generic: false,
+      clickPool: 'clickXhs',
+      ctrlEnterPost: false,
+      matchHost: (host) => host === 'xiaohongshu.com' || host.endsWith('.xiaohongshu.com'),
+      allowPath: (path) => !XPET.VIDEO_COMMON_EXCLUDE_PATH.test(path) && XPET.XHS_ALLOW_PATH.test(path),
+    },
+    {
+      key: 'bilibili',
+      name: 'B站',
+      icon: '📺',
+      level: 'L1',
+      generic: false,
+      clickPool: 'clickBilibili',
+      ctrlEnterPost: false,
+      videoActive: true,
+      matchHost: (host) => host === 'bilibili.com' || (host.endsWith('.bilibili.com') && !/^(passport|pay|member|account|mall|show|cm)\./.test(host)),
+      allowPath: (path, host) => !XPET.VIDEO_COMMON_EXCLUDE_PATH.test(path) && (/^(t|search|space)\.bilibili\.com$/.test(host || '') || XPET.BILIBILI_ALLOW_PATH.test(path)),
+    },
+    {
+      key: 'douyin',
+      name: '抖音',
+      icon: '🎵',
+      level: 'L1',
+      generic: false,
+      clickPool: 'clickDouyin',
+      ctrlEnterPost: false,
+      videoActive: true,
+      matchHost: (host) => host === 'douyin.com' || (host.endsWith('.douyin.com') && !/^(sso|creator|pay|mcn)\./.test(host)),
+      allowPath: (path) => !XPET.VIDEO_COMMON_EXCLUDE_PATH.test(path) && XPET.DOUYIN_ALLOW_PATH.test(path),
+    },
+  ],
+  interactionPolicy(siteKey) {
+    const s = XPET.siteByKey(siteKey);
+    if (!s || s.level === 'L1') {
+      return { level: 'L1', generic: false, ctrlEnter: false };
+    }
+    return {
+      level: s.level,
+      generic: s.generic === true,
+      ctrlEnter: s.ctrlEnterPost === true,
+    };
   },
-  SITE_ICONS: {
-    x: '𝕏',
-    binance: '🟡',
-    okx: '🔵',
+  hasPlayingVideo(videos) {
+    if (!videos || !videos.length) return false;
+    for (let i = 0; i < videos.length; i++) {
+      const v = videos[i];
+      if (v && !v.paused && !v.ended && v.readyState >= 2 && v.currentTime > 0) return true;
+    }
+    return false;
+  },
+
+  // ---------- 国内站点 L2 规则引擎（纯数据 + 纯函数，不直接操作 DOM） ----------
+  DOMESTIC_RULES: {
+    weibo: [
+      {
+        act: 'like',
+        sel: 'button.woo-like-main',
+        post: { countIncrease: true },
+        pollMs: 2000,
+        evidence: ['like-card-1', 'like-detail-1'],
+      },
+      {
+        act: 'post',
+        sel: 'button.woo-button-main',
+        text: ['发送', '评论'],
+        notClassWord: 'disabled',
+        ancestorHasEditor: 8,
+        evidence: ['post-send', 'comment-send', 'comment-reply'],
+      },
+      {
+        act: 'repost',
+        sel: 'button.woo-button-main',
+        text: ['转发'],
+        notClassWord: 'disabled',
+        ancestorHasEditor: 8,
+        evidence: ['repost-confirm'],
+      },
+      {
+        act: 'bookmark',
+        sel: '[role="button"].woo-pop-item-main',
+        text: ['收藏'],
+        once: 'modal',
+        evidence: ['bookmark-1'],
+      },
+      {
+        act: 'follow',
+        sel: 'button.woo-button-main',
+        text: ['关注', '+关注'],
+        post: { textChanged: true },
+        pollMs: 1500,
+        evidence: ['follow-1'],
+      },
+    ],
+    zhihu: [
+      {
+        act: 'like',
+        sel: 'button.VoteButton:not(.VoteButton--down)',
+        labelStartsWith: ['赞同'],
+        pre: { absentClass: 'is-active' },
+        post: { presentClass: 'is-active' },
+        pollMs: 1500,
+        evidence: ['agree-answer-1', 'agree-feed-1'],
+      },
+      {
+        act: 'like',
+        sel: 'button.ContentItem-action[aria-label="喜欢"]',
+        post: { ariaIs: '取消喜欢' },
+        pollMs: 1500,
+        evidence: ['like-1'],
+      },
+      {
+        act: 'bookmark',
+        sel: 'button.Favlists-updateButton',
+        text: ['收藏'],
+        mustBeInside: '.FavlistsModal',
+        pre: { absentClass: 'Button--grey' },
+        post: { presentClass: 'Button--grey' },
+        once: 'modal',
+        evidence: ['bookmark-live'],
+      },
+      {
+        act: 'post',
+        sel: 'button.Button',
+        text: ['发布'],
+        mustBeInside: '.Comments-container',
+        evidence: ['comment-send'],
+      },
+      {
+        act: 'post',
+        sel: 'button.Button',
+        text: ['发布'],
+        mustBeInside: '.WritePinToolbar',
+        evidence: ['pin-send'],
+      },
+      {
+        act: 'post',
+        sel: 'button.Button',
+        text: ['发布回答'],
+        mustBeInside: '.AnswerAdd',
+        evidence: ['answer-send'],
+      },
+      {
+        act: 'follow',
+        sel: 'button.FollowButton',
+        pre: { absentClass: 'Button--grey' },
+        post: { presentClass: 'Button--grey' },
+        mustNotBeInside: '.QuestionHeader',
+        pollMs: 1500,
+        evidence: ['follow-user-1', 'follow-profile'],
+      },
+    ],
+  },
+  nodeMatchesSel(node, sel) {
+    if (!node || !sel) return false;
+    // 支持简单组合选择器：tag、[attr="val"]、.cls、:not(.cls)
+    let rest = sel.trim();
+    const notMatches = [];
+    rest = rest.replace(/:not\(\.([^)]+)\)/g, (_, c) => { notMatches.push(c); return ''; });
+    for (const nc of notMatches) {
+      if ((node.cls || []).includes(nc)) return false;
+    }
+    const attrMatches = [];
+    rest = rest.replace(/\[([a-zA-Z0-9_-]+)="([^"]*)"\]/g, (_, k, v) => { attrMatches.push([k, v]); return ''; });
+    for (const [k, v] of attrMatches) {
+      if (k === 'role' && node.role !== v) return false;
+      if (k === 'aria-label' && node.aria !== v) return false;
+    }
+    const clsMatches = [];
+    rest = rest.replace(/\.([a-zA-Z0-9_-]+)/g, (_, c) => { clsMatches.push(c); return ''; });
+    for (const c of clsMatches) {
+      if (!(node.cls || []).includes(c)) return false;
+    }
+    if (rest && node.tag !== rest.toLowerCase()) return false;
+    return true;
+  },
+  ruleMatches(rule, chain) {
+    if (!rule || !Array.isArray(chain) || !chain.length) return -1;
+    let idx = -1;
+    for (let i = 0; i < chain.length; i++) {
+      if (XPET.nodeMatchesSel(chain[i], rule.sel)) { idx = i; break; }
+    }
+    if (idx < 0) return -1;
+    const node = chain[idx];
+    if (rule.notClassWord && (node.cls || []).includes(rule.notClassWord)) return -1;
+    if (rule.text && !rule.text.includes(node.text)) return -1;
+    if (rule.labelStartsWith) {
+      const lbl = node.aria || node.text || '';
+      if (!rule.labelStartsWith.some((p) => lbl.startsWith(p))) return -1;
+    }
+    if (rule.pre) {
+      if (rule.pre.absentClass && (node.cls || []).includes(rule.pre.absentClass)) return -1;
+      if (rule.pre.ariaIs && node.aria !== rule.pre.ariaIs) return -1;
+    }
+    if (rule.ancestorHasEditor) {
+      const limit = Math.min(chain.length, idx + rule.ancestorHasEditor + 1);
+      let found = false;
+      for (let i = idx; i < limit; i++) {
+        if (chain[i].hasEditor) { found = true; break; }
+      }
+      if (!found) return -1;
+    }
+    if (rule.mustBeInside) {
+      let ok = false;
+      for (let i = idx + 1; i < chain.length; i++) {
+        if (XPET.nodeMatchesSel(chain[i], rule.mustBeInside)) { ok = true; break; }
+      }
+      if (!ok) return -1;
+    }
+    if (rule.mustNotBeInside) {
+      for (let i = idx + 1; i < chain.length; i++) {
+        if (XPET.nodeMatchesSel(chain[i], rule.mustNotBeInside)) return -1;
+      }
+    }
+    return idx;
+  },
+  matchDomesticRule(siteKey, chain) {
+    const rules = XPET.DOMESTIC_RULES[siteKey];
+    if (!Array.isArray(rules) || !rules.length) return null;
+    for (const rule of rules) {
+      const idx = XPET.ruleMatches(rule, chain);
+      if (idx >= 0) return { rule, matchIndex: idx };
+    }
+    return null;
+  },
+  get SITE_NAMES() {
+    const out = {};
+    for (const s of XPET.SITES) out[s.key] = `${s.icon} ${s.name}`;
+    return out;
+  },
+  get SITE_ICONS() {
+    const out = {};
+    for (const s of XPET.SITES) out[s.key] = s.icon;
+    return out;
+  },
+  siteByKey(key) {
+    return XPET.SITES.find((s) => s.key === key) || null;
   },
 
   // 时长与滚动距离的显示（1 CSS 像素按 96dpi 折算，约 0.2646 毫米，是估算值）
@@ -190,9 +493,9 @@ const XPET = {
     XPET.VOICE_KEYS.forEach((k) => { if (src[k]) c.phrases[k] = src[k].slice(); });
   },
 
-  // 内置形象：目前只有 'chabit'（小桌宠，默认名 CICI）；没有上传自定义图片时使用
+  // 内置形象：'chabit'（小桌宠，默认名 CICI）、'deepseek'、'grok'；没有上传自定义图片时使用
   builtinChar(look) {
-    const names = { chabit: 'CICI' }; // 这一版只保留小桌宠，默认名叫 CICI（其他内置角色暂时移除，见 RETIRED_IDS）
+    const names = { chabit: 'CICI', deepseek: 'DeepSeek', grok: 'Grok' };
     return { id: look, name: names[look] || look, img: null, look, accessory: "none", size: XPET.DEFAULT_SIZE, sprites: {}, phrases: XPET.defaultPhrases() };
   },
 
@@ -264,11 +567,7 @@ const XPET = {
       milestone: true, // 累计陪伴天数里程碑
       stories: { enabled: true }, // 小本子：解锁提示 + 点击宠物时偶尔说一句碎碎念
       quietUntil: 0, // 「今天安静」截止时间戳（毫秒）；在此之前除用户点击外不主动弹气泡，动画保留
-      sites: {
-        x: true,        // X (Twitter)
-        binance: true,  // 币安广场 (Binance Square)
-        okx: true,      // OK星球 / 广场 (OKX Planet & Square)
-      },
+      sites: Object.fromEntries(XPET.SITES.map((s) => [s.key, true])),
       appearance: {
         opacity: 100, // 宠物不透明度（30% ~ 100%），鼠标悬停自动恢复 100%
         bubbleTime: 2500, // 台词停留时间（毫秒，1000 ~ 8000）
@@ -338,11 +637,7 @@ const XPET = {
     const stv = raw.stories && typeof raw.stories === 'object' ? raw.stories : {};
     return {
       v: 4,
-      sites: {
-        x: bool(st.x, (d.sites && d.sites.x) !== false),
-        binance: bool(st.binance, (d.sites && d.sites.binance) !== false),
-        okx: bool(st.okx, (d.sites && d.sites.okx) !== false),
-      },
+      sites: Object.fromEntries(XPET.SITES.map((s) => [s.key, bool(st[s.key], (d.sites && d.sites[s.key]) !== false)])),
       holidays: { enabled: bool(hd.enabled, d.holidays.enabled), items: hItems },
       back: { enabled: bool(bk.enabled, d.back.enabled), minutes: int(bk.minutes, 10, 720, d.back.minutes) },
       milestone: bool(raw.milestone, d.milestone),
@@ -447,7 +742,8 @@ const XPET = {
     if (Array.isArray(phrases.unlock) && phrases.unlock.some((t) => OLD_UNLOCK.includes(t))) {
       phrases.unlock = XPET.DEFAULT_PHRASES.unlock.slice();
     }
-    const look = 'chabit'; // 这一版只保留小桌宠：其他内置形象（含旧数据里的 teddy / slime / cat / doge / pepe）一律显示小桌宠
+    const validLooks = ['chabit', 'deepseek', 'grok'];
+    const look = validLooks.includes(c.look) ? c.look : 'chabit'; // 旧数据里的 teddy / slime / cat / doge / pepe 回退为小桌宠
     const sprites = {};
     const raw = c.sprites && typeof c.sprites === 'object' ? c.sprites : {};
     const n = (v, lo, hi, d) => { const x = Math.floor(Number(v)); return Number.isFinite(x) && x >= lo && x <= hi ? x : d; };
@@ -499,7 +795,7 @@ const XPET = {
           toSet[XPET.RETIRED_KEY] = arch;
         }
         await chrome.storage.local.set(toSet);
-      } catch (e) {}
+      } catch (e) { }
     }
     return { chars, active };
   },
@@ -511,34 +807,53 @@ const XPET = {
   // ---------- 站点路径判断（纯函数，不读页面标题或内容，供 content.js 与自动化测试共用） ----------
   FIN_PATH: /(^|\/)(trade|trading|spot|futures|margin|derivatives|options|swap|convert|assets?|balance|wallet|deposit|withdraw|funding|earn|finance|account|copy-trading|web3|dex|p2p|fiat|buy-crypto|markets?)(\/|$|-)/,
   X_EXCLUDE_PATH: /^\/(messages|settings)(\/|$)|^\/i\/(flow|chat)(\/|$)/, // /i/chat 是 X 新版私信入口（2026-11-08 用户在浏览器中确认）
+  WEIBO_EXCLUDE_PATH: /^\/(login(?:\.php)?|newlogin|signin|signup|register|logout|settings?|set|account|security|messages?|chat|im|pay|vip|wallet|creator|draft|compose|edit)(\/|$)/,
+  ZHIHU_EXCLUDE_PATH: /^\/(signin|signup|login|logout|settings?|account|security|notifications?|messages?|chat|pay|vip|wallet|creator|write|drafts?|edit|xen\/market)(\/|$)/,
+  VIDEO_COMMON_EXCLUDE_PATH: /(^|\/)(login|passport|message|setting|account|pay|creator|upload|publish|draft|studio)(\/|$)/,
+  XHS_ALLOW_PATH: /^(\/$|\/explore(\/|$)|\/search_result(\/|$)|\/user\/profile\/|\/discovery\/item\/)/,
+  BILIBILI_ALLOW_PATH: /^(\/$|\/video\/|\/opus\/|\/read\/|\/v\/)/,
+  DOUYIN_ALLOW_PATH: /^(\/$|\/jingxuan(\/|$)|\/discover(\/|$)|\/video\/|\/user\/|\/search\/)/,
   siteKeyOf(host) {
     host = String(host || '').toLowerCase();
-    if (host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')) return 'x';
-    if (host.includes('binance.com')) return 'binance';
-    if (host.includes('okx.') || host.includes('ouyi.')) return 'okx';
+    for (const s of XPET.SITES) {
+      if (s.matchHost(host)) return s.key;
+    }
     return 'other';
   },
   siteAllowed(host, path, sites) {
     host = String(host || '').toLowerCase();
     path = String(path || '').toLowerCase();
-    sites = sites || { x: true, binance: true, okx: true };
-    if (host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')) {
-      if (sites.x === false) return false;
-      if (XPET.X_EXCLUDE_PATH.test(path)) return false;
-      return true;
+    const s = XPET.SITES.find((item) => item.matchHost(host));
+    if (!s) return false;
+    if (sites && sites[s.key] === false) return false;
+    return s.allowPath(path, host);
+  },
+  emptySite() {
+    return { seconds: 0, scroll: 0, post: 0, like: 0, bookmark: 0, repost: 0, follow: 0 };
+  },
+  normalizeDay(cur) {
+    const c = cur && typeof cur === 'object' ? cur : {};
+    const curBySite = c.bySite && typeof c.bySite === 'object' ? c.bySite : {};
+    const bySite = {};
+    for (const s of XPET.SITES) {
+      bySite[s.key] = { ...XPET.emptySite(), ...(curBySite[s.key] && typeof curBySite[s.key] === 'object' ? curBySite[s.key] : {}) };
     }
-    if (host.includes('binance.com')) {
-      if (sites.binance === false) return false;
-      if (XPET.FIN_PATH.test(path)) return false;
-      return path.includes('/square') || path.includes('/feed');
+    for (const k of Object.keys(curBySite)) {
+      if (!Object.prototype.hasOwnProperty.call(bySite, k) && curBySite[k] && typeof curBySite[k] === 'object') {
+        bySite[k] = { ...XPET.emptySite(), ...curBySite[k] };
+      }
     }
-    if (host.includes('okx.') || host.includes('ouyi.')) {
-      if (sites.okx === false) return false;
-      if (XPET.FIN_PATH.test(path)) return false;
-      // 只看网址路径（不读 document.title）：OK星球官方为 /orbit，兼容 /square、/community、/feed、/social、/insights、/discover、/post、/article
-      return /\/(orbit|square|community|feed|social|insights|discover|post|article)(\/|$|-)/.test(path);
-    }
-    return false;
+    return {
+      post: 0,
+      like: 0,
+      bookmark: 0,
+      repost: 0,
+      follow: 0,
+      seconds: 0,
+      scroll: 0,
+      ...c,
+      bySite,
+    };
   },
 
   // ---------- 语气规范检查（供 tools/lint_tone.js 与 AI 导入过滤共用） ----------
@@ -614,7 +929,7 @@ const XPET = {
         const item = queue.shift();
         const ok = !!deps.show(item);
         if (ok) {
-          if (typeof item.ack === 'function') { try { item.ack(); } catch (_) {} }
+          if (typeof item.ack === 'function') { try { item.ack(); } catch (_) { } }
         } else if ((item.retries || 0) < MAX_RETRIES) {
           item.retries = (item.retries || 0) + 1;
           queue.unshift(item);
@@ -680,6 +995,8 @@ const XPET = {
 
     LOOK_NAMES: {
       chabit: '小桌宠',
+      deepseek: 'DeepSeek',
+      grok: 'Grok',
     },
 
     buildPrompt(opts = {}) {
@@ -690,8 +1007,10 @@ const XPET = {
       const custom = (opts.custom || '').trim() || '无特殊要求，请自由发挥。';
       const includeSlots = opts.includeSlots !== false;
 
+      const siteNames = XPET.SITES.map((s) => s.name).join('、');
+
       return `你是一名专属桌面伴宠（Desk Pet）台词与人设架构师。
-请为一款运行在浏览器（推特/X、币安广场、OK星球）上的桌面伴宠插件【CCbd 伴宠】设计一套充满个性的角色台词与配置。
+请为一款运行在浏览器（${siteNames}）上的桌面伴宠插件【CCbd 伴宠】设计一套充满个性的角色台词与配置。
 
 【伴宠设定要求】
 - 角色形象：${lookName}（形象ID: "${look}"）
@@ -707,22 +1026,27 @@ const XPET = {
 - 不下绝对断言，多用犹豫、开放的句式，例如“我考虑考虑要不要睡觉”“好晚啊…”。
 - 不要卖萌撒娇，不要堆叠语气词；每句尽量短（20 字以内）。
 - 被点击时说“我也在……”：说自己此刻在做什么（看推特、发呆、看屏幕），不要报在线时长。
-变量占位符只有三个：{days}（陪伴天数）、{title}（日记标题）、{name}（桌搭名称），且只能出现在下面第 13–15 类里；其他类别和时段问候里不要出现任何 {} 变量，也不要自创变量（插件会在运行时自动替换成真实内容）：
+变量占位符只有三个：{days}（陪伴天数）、{title}（日记标题）、{name}（桌搭名称），且只能出现在下面第 18–20 类里；其他类别和时段问候里不要出现任何 {} 变量，也不要自创变量（插件会在运行时自动替换成真实内容）：
 1. click (平时点击伴宠): 3~5句，“我也在……”，说自己此刻在干嘛（发呆、看屏幕等）。
 2. clickX (在推特上点击): 3~4句，例如“我也在刷推特”。
 3. clickBinance (在币安广场点击): 3~4句。
 4. clickOkx (在OK星球点击): 3~4句。
-5. clickEarly (今天刚开始时点击): 2~3句。
-6. post (发文/发推/发帖/回复后): 3~4句，刚发完内容那一刻的心里话。
-7. like (点赞): 3~4句（出现概率很低，所以每句要有味道）。
-8. bookmark (收藏): 2~3句。
-9. repost (转发/引用): 2~3句。
-10. follow (关注新账号): 2~3句。
-11. night (深夜1点-5点仍在使用): 3~4句，用犹豫、矛盾的口吻，不要劝睡。
-12. back (中途离开后重新回来): 2~3句，说自己回来了。
-13. milestone (陪伴天数里程碑): 2句，【必须保留】{days} 变量。例如："不知不觉，一起 {days} 天了"
-14. story (写了新的一页日记): 2句，【必须保留】{title} 变量。例如："日记多了一页「{title}」"
-15. unlock (桌上多了新东西): 2句，【必须保留】{name} 变量。例如："桌上多了一件 {name}"
+5. clickWeibo (在微博点击): 3~4句。
+6. clickZhihu (在知乎点击): 3~4句。
+7. clickXhs (在小红书点击): 3~4句，例如“我也在翻笔记”。
+8. clickBilibili (在B站点击): 3~4句，例如“我也在看视频”。
+9. clickDouyin (在抖音点击): 3~4句，例如“我也在刷”。
+10. clickEarly (今天刚开始时点击): 2~3句。
+11. post (发文/发推/发帖/回复后): 3~4句，刚发完内容那一刻的心里话。
+12. like (点赞): 3~4句（出现概率很低，所以每句要有味道）。
+13. bookmark (收藏): 2~3句。
+14. repost (转发/引用): 2~3句。
+15. follow (关注新账号): 2~3句。
+16. night (深夜1点-5点仍在使用): 3~4句，用犹豫、矛盾的口吻，不要劝睡。
+17. back (中途离开后重新回来): 2~3句，说自己回来了。
+18. milestone (陪伴天数里程碑): 2句，【必须保留】{days} 变量。例如："不知不觉，一起 {days} 天了"
+19. story (写了新的一页日记): 2句，【必须保留】{title} 变量。例如："日记多了一页「{title}」"
+20. unlock (桌上多了新东西): 2句，【必须保留】{name} 变量。例如："桌上多了一件 {name}"
 ${includeSlots ? `
 【时段问候 (通用每日首次问候，同样只用第一人称自言自语，不含“你/别/记得/注意/休息”)】
 - morning (早上 5-11点): 2句早安自言自语
@@ -743,6 +1067,11 @@ JSON 数据结构必须严格符合以下格式：
     "clickX": ["..."],
     "clickBinance": ["..."],
     "clickOkx": ["..."],
+    "clickWeibo": ["..."],
+    "clickZhihu": ["..."],
+    "clickXhs": ["..."],
+    "clickBilibili": ["..."],
+    "clickDouyin": ["..."],
     "clickEarly": ["..."],
     "post": ["..."],
     "like": ["..."],
@@ -827,7 +1156,7 @@ JSON 数据结构必须严格符合以下格式：
           return { ok: false, error: '未能从数据中提取到任何有效的伴宠台词分类。' };
         }
 
-        const validLooks = ['chabit'];
+        const validLooks = ['chabit', 'deepseek', 'grok'];
         const look = validLooks.includes(parsed.look) ? parsed.look : 'chabit';
         const name = (parsed.name && typeof parsed.name === 'string') ? parsed.name.trim().slice(0, 20) : (XPET.AI.LOOK_NAMES[look] || '新伴宠');
         const persona = typeof parsed.persona === 'string' ? parsed.persona.trim() : '';

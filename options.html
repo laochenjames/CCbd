@@ -76,12 +76,17 @@
         <p class="hint" id="p-msg"></p>
       </details>
 
-      <details class="grp" open><summary>生效站点（推特 / 币安广场 / OK星球）</summary>
+      <details class="grp" open><summary>生效站点（推特 / 币安广场 / OK星球 / 微博 / 知乎 / 小红书 / B站 / 抖音）</summary>
         <p class="hint">选择伴宠在哪些平台出现。伴宠<b>仅在类似推特的社交广场 / 星球页面</b>生效，绝不会在交易所行情、交易、盯盘等页面打扰你。</p>
         <div class="sub">
           <label class="row" style="margin-bottom:6px;"><input type="checkbox" id="site-x"> <b>X / Twitter (推特)</b> <span class="hint">（支持主页 Feed、发推、点赞、关注等）</span></label>
           <label class="row" style="margin-bottom:6px;"><input type="checkbox" id="site-binance"> <b>币安广场 (Binance Square)</b> <span class="hint">（仅在 <code>binance.com/*/square*</code> 等广场社区页面展示）</span></label>
           <label class="row" style="margin-bottom:6px;"><input type="checkbox" id="site-okx"> <b>OK星球 / 广场 (OKX Planet & Square)</b> <span class="hint">（仅在 <code>okx.com/*/orbit*</code>、<code>okx.com/*/square*</code> 等社区页面展示）</span></label>
+          <label class="row" style="margin-bottom:6px;"><input type="checkbox" id="site-weibo"> <b>微博 (weibo.com)</b> <span class="hint">（桌面网页版，暂不统计互动）</span></label>
+          <label class="row" style="margin-bottom:6px;"><input type="checkbox" id="site-zhihu"> <b>知乎 (zhihu.com)</b> <span class="hint">（桌面网页版含专栏，暂不统计互动）</span></label>
+          <label class="row" style="margin-bottom:6px;"><input type="checkbox" id="site-xhs"> <b>小红书 (xiaohongshu.com)</b> <span class="hint">（桌面网页版，暂不统计互动）</span></label>
+          <label class="row" style="margin-bottom:6px;"><input type="checkbox" id="site-bilibili"> <b>B站 (bilibili.com)</b> <span class="hint">（桌面网页版，暂不统计互动）</span></label>
+          <label class="row" style="margin-bottom:6px;"><input type="checkbox" id="site-douyin"> <b>抖音 (douyin.com)</b> <span class="hint">（桌面网页版，暂不统计互动）</span></label>
         </div>
       </details>
 
@@ -203,6 +208,8 @@
                 <label for="ai-look-sel">角色内置形象：</label>
                 <select id="ai-look-sel">
                   <option value="chabit">🧸 小桌宠</option>
+                  <option value="deepseek">🐋 DeepSeek</option>
+                  <option value="grok">🤖 Grok</option>
                 </select>
               </div>
               <div class="ai-field">

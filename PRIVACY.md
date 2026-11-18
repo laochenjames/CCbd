@@ -1,6 +1,6 @@
 # 隐私政策 / Privacy Policy for CCbd 伴宠
 
-**最后更新日期 / Last updated**: 2026-11-07
+**最后更新日期 / Last updated**: 2026-11-15
 
 「CCbd 伴宠」（以下简称“本插件”或“我们”）是一款运行在 Chrome 等 Chromium 内核浏览器上的开源伴宠扩展。我们高度重视用户隐私与数据安全，并严格遵守 Google Chrome Web Store 开发者计划政策及单一用途原则。
 
@@ -15,8 +15,12 @@ CCbd ("we", "our", or "the Extension") is an open-source browser extension desig
   The Extension does **NOT** collect, record, track, transmit, or sell any personally identifiable information (PII), browsing history, the content you type or post, passwords, crypto wallet information, financial transactions, or private communications.
 
 - **只记录「次数」和「时长」，不记录「内容」 / Counts and durations only, never content**:  
-  为了在「今日统计」和设置页日历里展示数据，本插件会在**推特、币安广场、OK星球的社交动态页面**上，在本地累计发文、点赞、收藏、转发、关注的**次数**、页面处于前台且有操作的**在线时长**以及页面滚动的大致距离。它**不会**读取、保存帖子、评论或你所输入文字的内容。  
-  To show your daily statistics, the Extension keeps local counters on supported social feed pages only: the **number** of posts, likes, bookmarks, reposts and follows, the active **time** spent, and approximate scroll distance. It never reads or stores the text of posts, comments, or anything you type.
+  为了在「今日统计」和设置页日历里展示数据，本插件会在**推特（X）、币安广场、OK星球、微博、知乎、小红书、B站、抖音的社交动态或内容页面**上，在本地累计页面处于前台且有操作的**在线时长**、页面滚动的大致距离，以及（在已启用互动识别的站点上）发文、点赞、收藏、转发、关注的**次数**。它**不会**读取、保存帖子、评论、回答或你所输入文字的内容。  
+  To show your daily statistics, the Extension keeps local counters on supported social feed pages (X/Twitter, Binance Square, OKX Orbit, Weibo, Zhihu, Xiaohongshu, Bilibili, and Douyin) only: active **time** spent, approximate scroll distance, and (on sites where interaction detection is enabled) the **number** of posts, likes, bookmarks, reposts and follows. It never reads or stores the text of posts, comments, answers, or anything you type.
+
+- **识别互动与「是否在播放视频」时读取了什么 / What is read to recognize interactions and video playback**:  
+  为了识别点赞、收藏、关注、发文等操作，在已启用互动识别的站点上，脚本会检查**你点击的那个按钮**的类名、无障碍标签（aria-label）或按钮上的简短文字，并**只与内置的固定词表比较**；词表之外的文字不会被保存，也不会上传。在 B 站和抖音，为了在你只看视频、没有鼠标键盘操作时仍把你算作「在线」，脚本每隔几秒读取页面上视频的**播放状态**（是否在播放、是否已结束、是否已缓冲），**不读取**视频的地址、标题、内容、进度条或字幕。以上判断都在你的浏览器内存中完成，不保存、不上传。  
+  To recognize actions such as likes, bookmarks, follows and posts, on sites where interaction detection is enabled the script inspects only **the button you clicked** (its class name, aria-label, or short button text) and **compares it with a fixed built-in word list**; text outside that list is never stored or uploaded. On Bilibili and Douyin, so that you still count as present while only watching a video, the script periodically checks the **playback state** of videos on the page (playing, ended, or buffering) and does **not** read the video's address, title, content, progress, or subtitles. All of this happens in your browser's memory and is never stored or uploaded.
 
 - **100% 纯本地存储 / 100% Local Storage**:  
   所有数据（选择的角色形象、台词文本、画像选项、陪伴天数、统计计数、宠物位置等）均完全存储在你浏览器本地的 `chrome.storage.local` 中，不会上传到任何服务器。  
@@ -44,11 +48,11 @@ CCbd ("we", "our", or "the Extension") is an open-source browser extension desig
    - **用途**：当你点击浏览器右上角的伴宠图标弹出快捷面板时，用于判断当前标签页是否属于支持的站点，以便一键开启/关闭该站点的伴宠显示。  
    - **Purpose**: Used when you open the toolbar popup, to detect whether the active tab is on a supported site and let you toggle it with one click.
 
-3. **主机权限 / Host Permissions (`x.com`/`twitter.com`, `binance.com`, `okx.com` 及其镜像域名)**：  
-   - **为什么需要整站权限**：币安、OKX 是单页应用，页面之间跳转不会重新加载，所以脚本需要在这些站点的页面上加载，才能在你从别的页面进入广场/星球时及时出现。  
-   - **脚本实际做什么**：脚本只根据**网址路径**判断当前是不是社交动态页面。在交易、行情、资产、充值、提现、账户、钱包等页面（以及任何不是社交动态的页面），脚本**不显示任何内容、不计时、不统计、不读取页面内容**；它只检查网址路径，然后保持静默。  
-   - **Why site-wide host permissions**: Binance and OKX are single-page apps, so the script must be loaded across the site to appear when you navigate into a social feed.  
-   - **What the script actually does**: it decides from the URL **path** alone whether the current page is a social feed. On trading, markets, assets, deposit, withdraw, account, wallet pages (and any page that is not a social feed) it renders nothing, does not count time, does not count interactions, and does not read page content.
+3. **主机权限 / Host Permissions (`x.com`/`twitter.com`, `binance.com`, `okx.com` 及其镜像域名, `weibo.com`, `zhihu.com`, `xiaohongshu.com`, `bilibili.com`, `douyin.com`)**：  
+   - **为什么需要整站权限**：币安、OKX、微博、知乎、小红书、B站、抖音都是单页应用（或在同一主域下包含动态页与账户页），页面之间跳转不会重新加载，所以脚本需要在这些站点的页面上加载，才能在你从别的页面进入动态流时及时出现，并在进入登录、私信、设置、支付等页面时自动隐藏。  
+   - **脚本实际做什么**：脚本只根据**网址路径**判断当前是不是社交动态页面。在币安/OKX 的交易、行情、资产、充值、提现、账户、钱包等页面，X 的登录流程、私信、设置（含账号安全）页面，以及微博、知乎、小红书、B站、抖音的登录、私信/消息、设置、账号安全、支付/会员、创作者中心、草稿/写作等页面（以及任何不是社交动态的页面），脚本**不显示任何内容、不计时、不统计、不读取页面内容**；它只检查网址路径，然后保持静默。  
+   - **Why site-wide host permissions**: Binance, OKX, Weibo, Zhihu, Xiaohongshu, Bilibili, and Douyin are single-page apps (or share domains across feeds and account pages), so the script must be loaded across the site to appear when you navigate into a social feed while staying hidden on login, messages, settings, payment, or creator/editor pages.  
+   - **What the script actually does**: it decides from the URL **path** alone whether the current page is a social feed. On trading, markets, assets, deposit, withdraw, account, and wallet pages (on Binance/OKX), on login flows, direct messages, and settings (including account security) pages (on X), and on login, messages/chat, settings, account security, payment/VIP, creator center, and draft/editor pages (on Weibo, Zhihu, Xiaohongshu, Bilibili, and Douyin)—as well as any page that is not a social feed—it renders nothing, does not count time, does not count interactions, and does not read page content.
 
 ---
 

@@ -7,6 +7,8 @@
   const checkX = document.getElementById('pop-x');
   const checkBinance = document.getElementById('pop-binance');
   const checkOkx = document.getElementById('pop-okx');
+  const checkWeibo = document.getElementById('pop-weibo');
+  const checkZhihu = document.getElementById('pop-zhihu');
   const checkQuiet = document.getElementById('pop-quiet');
   const btnReload = document.getElementById('btn-reload');
   const btnOptions = document.getElementById('btn-options');
@@ -35,6 +37,8 @@
   checkX.checked = sites.x !== false;
   checkBinance.checked = sites.binance !== false;
   checkOkx.checked = sites.okx !== false;
+  if (checkWeibo) checkWeibo.checked = sites.weibo !== false;
+  if (checkZhihu) checkZhihu.checked = sites.zhihu !== false;
   if (checkQuiet) checkQuiet.checked = !!(settings.quietUntil && Date.now() < settings.quietUntil);
 
   // 3. 渲染当前标签页状态
@@ -45,19 +49,12 @@
       return;
     }
     const url = currentTab.url.toLowerCase();
-    let siteKey = null;
-    let siteName = '';
-
-    if (url.includes('x.com') || url.includes('twitter.com')) {
-      siteKey = 'x';
-      siteName = '𝕏 推特';
-    } else if (url.includes('binance.com')) {
-      siteKey = 'binance';
-      siteName = '🟡 币安广场';
-    } else if (url.includes('okx.') || url.includes('ouyi.')) {
-      siteKey = 'okx';
-      siteName = '🔵 OK星球/社区';
-    }
+    let host = '';
+    try { host = new URL(url).hostname; } catch (e) {}
+    const sk = XPET.siteKeyOf(host);
+    const siteMeta = sk !== 'other' ? XPET.siteByKey(sk) : null;
+    const siteKey = siteMeta ? siteMeta.key : null;
+    const siteName = siteMeta ? `${siteMeta.icon} ${siteMeta.name}` : '';
 
     if (siteKey) {
       const isEnabled = settings.sites && settings.sites[siteKey] !== false;
@@ -70,7 +67,7 @@
       }
     } else {
       tabStatusEl.className = 'status-card inactive';
-      tabTextEl.textContent = '当前标签页非推特/币安/OK星球页面';
+      tabTextEl.textContent = `当前标签页非${XPET.SITES.map((s) => s.name).join('/')}页面`;
     }
   }
 
@@ -89,6 +86,8 @@
   checkX.addEventListener('change', () => updateSiteSetting('x', checkX.checked));
   checkBinance.addEventListener('change', () => updateSiteSetting('binance', checkBinance.checked));
   checkOkx.addEventListener('change', () => updateSiteSetting('okx', checkOkx.checked));
+  if (checkWeibo) checkWeibo.addEventListener('change', () => updateSiteSetting('weibo', checkWeibo.checked));
+  if (checkZhihu) checkZhihu.addEventListener('change', () => updateSiteSetting('zhihu', checkZhihu.checked));
   if (checkQuiet) {
     checkQuiet.addEventListener('change', async () => {
       if (checkQuiet.checked) {
@@ -153,11 +152,7 @@
       }
 
       const bs = todayData.bySite || {};
-      const siteConfig = [
-        { key: 'x', name: '𝕏', fullName: '推特' },
-        { key: 'binance', name: '🟡', fullName: '币安广场' },
-        { key: 'okx', name: '🔵', fullName: 'OK星球' },
-      ];
+      const siteConfig = XPET.SITES.map((s) => ({ key: s.key, name: s.icon, fullName: s.name }));
 
       sitesEl.innerHTML = '';
       siteConfig.forEach(({ key, name, fullName }) => {

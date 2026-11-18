@@ -1,0 +1,130 @@
+[
+  {
+    "label": "agree-answer-1",
+    "expect": "like",
+    "chain": [
+      { "tag": "button", "cls": ["Button", "VoteButton"], "aria": "赞同 12" },
+      { "tag": "div", "cls": ["ContentItem-actions"] }
+    ]
+  },
+  {
+    "label": "agree-feed-1",
+    "expect": "like",
+    "chain": [
+      { "tag": "button", "cls": ["Button", "VoteButton"], "aria": "赞同 3" },
+      { "tag": "div", "cls": ["ContentItem-actions"] }
+    ]
+  },
+  {
+    "label": "agree-cancel",
+    "expect": null,
+    "chain": [
+      { "tag": "button", "cls": ["Button", "VoteButton", "is-active"], "aria": "已赞同 13" },
+      { "tag": "div", "cls": ["ContentItem-actions"] }
+    ]
+  },
+  {
+    "label": "vote-down",
+    "expect": null,
+    "chain": [
+      { "tag": "button", "cls": ["Button", "VoteButton", "VoteButton--down"], "aria": "反对" },
+      { "tag": "div", "cls": ["ContentItem-actions"] }
+    ]
+  },
+  {
+    "label": "like-1",
+    "expect": "like",
+    "chain": [
+      { "tag": "button", "cls": ["Button", "ContentItem-action"], "aria": "喜欢" },
+      { "tag": "div", "cls": ["ContentItem-actions"] }
+    ]
+  },
+  {
+    "label": "like-2",
+    "expect": null,
+    "chain": [
+      { "tag": "button", "cls": ["Button", "ContentItem-action"], "aria": "取消喜欢" },
+      { "tag": "div", "cls": ["ContentItem-actions"] }
+    ]
+  },
+  {
+    "label": "bookmark-open",
+    "expect": null,
+    "chain": [
+      { "tag": "button", "cls": ["Button", "ContentItem-action"], "aria": "收藏" },
+      { "tag": "div", "cls": ["ContentItem-actions"] }
+    ]
+  },
+  {
+    "label": "bookmark-live",
+    "expect": "bookmark",
+    "chain": [
+      { "tag": "button", "cls": ["Button", "Favlists-updateButton", "Button--blue"], "text": "收藏" },
+      { "tag": "div", "cls": ["Modal", "FavlistsModal"] }
+    ]
+  },
+  {
+    "label": "comment-send",
+    "expect": "post",
+    "chain": [
+      { "tag": "button", "cls": ["Button", "Button--primary", "Button--blue"], "text": "发布" },
+      { "tag": "div", "cls": ["Comments-container"] }
+    ]
+  },
+  {
+    "label": "pin-send",
+    "expect": "post",
+    "chain": [
+      { "tag": "button", "cls": ["Button", "Button--blue"], "text": "发布" },
+      { "tag": "div", "cls": ["WritePinToolbar"] }
+    ]
+  },
+  {
+    "label": "answer-send",
+    "expect": "post",
+    "chain": [
+      { "tag": "button", "cls": ["Button", "Button--primary", "Button--blue"], "text": "发布回答" },
+      { "tag": "div", "cls": ["AnswerAdd"] }
+    ]
+  },
+  {
+    "label": "follow-user-1",
+    "expect": "follow",
+    "chain": [
+      { "tag": "button", "cls": ["Button", "FollowButton", "Button--blue"], "text": "关注" },
+      { "tag": "div", "cls": ["AuthorInfo"] }
+    ]
+  },
+  {
+    "label": "follow-profile",
+    "expect": "follow",
+    "chain": [
+      { "tag": "button", "cls": ["Button", "FollowButton", "Button--blue"], "text": "关注" },
+      { "tag": "div", "cls": ["AuthorInfo"] }
+    ]
+  },
+  {
+    "label": "follow-q-1",
+    "expect": null,
+    "chain": [
+      { "tag": "button", "cls": ["Button", "FollowButton", "Button--blue"], "text": "关注问题" },
+      { "tag": "div", "cls": ["QuestionHeader"] }
+    ]
+  },
+  {
+    "label": "unfollow-user-1",
+    "expect": null,
+    "chain": [
+      { "tag": "button", "cls": ["Button", "FollowButton", "Button--grey"], "text": "取消关注" },
+      { "tag": "div", "cls": ["AuthorInfo"] }
+    ]
+  },
+  {
+    "label": "blank-click",
+    "expect": null,
+    "chain": [
+      { "tag": "div", "cls": [] },
+      { "tag": "body", "cls": ["Topstory-body"] }
+    ]
+  }
+]

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "CCbd 伴宠",
-  "version": "0.13.0",
-  "description": "一只陪你逛推特、币安广场、OK星球的卡通伴宠，在你发帖、点赞的时候替你说句心里话，可自定义角色和装扮。",
+  "version": "0.14.1",
+  "description": "一只陪你逛推特、币安广场、OK星球、微博、知乎、小红书、B站、抖音的卡通伴宠，在你发帖、点赞的时候替你说句心里话，可自定义角色和装扮。",
   "permissions": [
     "storage",
     "unlimitedStorage",
@@ -45,7 +45,17 @@
         "https://*.okx.me/*",
         "https://okx.me/*",
         "https://*.ouyi.com/*",
-        "https://ouyi.com/*"
+        "https://ouyi.com/*",
+        "https://weibo.com/*",
+        "https://*.weibo.com/*",
+        "https://zhihu.com/*",
+        "https://*.zhihu.com/*",
+        "https://xiaohongshu.com/*",
+        "https://*.xiaohongshu.com/*",
+        "https://bilibili.com/*",
+        "https://*.bilibili.com/*",
+        "https://douyin.com/*",
+        "https://*.douyin.com/*"
       ],
       "js": [
         "shared.js",
@@ -78,7 +88,17 @@
         "https://*.okx.me/*",
         "https://okx.me/*",
         "https://*.ouyi.com/*",
-        "https://ouyi.com/*"
+        "https://ouyi.com/*",
+        "https://weibo.com/*",
+        "https://*.weibo.com/*",
+        "https://zhihu.com/*",
+        "https://*.zhihu.com/*",
+        "https://xiaohongshu.com/*",
+        "https://*.xiaohongshu.com/*",
+        "https://bilibili.com/*",
+        "https://*.bilibili.com/*",
+        "https://douyin.com/*",
+        "https://*.douyin.com/*"
       ]
     }
   ]

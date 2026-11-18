@@ -12,7 +12,7 @@ import zipfile
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 with open(os.path.join(BASE_DIR, 'manifest.json'), 'r', encoding='utf-8') as f:
-    VERSION = json.load(f).get('version', '0.13.0')
+    VERSION = json.load(f).get('version', '0.14.1')
 OUTPUT_ZIP = os.path.join(BASE_DIR, f'ccbd-v{VERSION}.zip')
 
 INCLUDE_FILES = [
@@ -37,7 +37,7 @@ INCLUDE_DIRS = [
 ]
 
 # 这一版只带小桌宠：teddy / cat / doge / pepe 的素材仍留在仓库里，但不打进包（恢复角色时把目录名加回这里）
-SPRITE_DIRS_IN_PACKAGE = {'chabit'}
+SPRITE_DIRS_IN_PACKAGE = {'chabit', 'deepseek', 'grok'}
 
 def make_zip():
     if os.path.exists(OUTPUT_ZIP):

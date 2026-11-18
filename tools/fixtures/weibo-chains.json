@@ -1,0 +1,124 @@
+[
+  {
+    "label": "like-card-1",
+    "expect": "like",
+    "chain": [
+      { "tag": "span", "cls": ["woo-like-count"] },
+      { "tag": "button", "cls": ["woo-like-main"], "text": "471" },
+      { "tag": "div", "cls": ["woo-box-flex"] }
+    ]
+  },
+  {
+    "label": "like-detail-1",
+    "expect": "like",
+    "chain": [
+      { "tag": "span", "cls": ["woo-like-iconWrap"] },
+      { "tag": "button", "cls": ["woo-like-main"], "text": "55" }
+    ]
+  },
+  {
+    "label": "post-send",
+    "expect": "post",
+    "chain": [
+      { "tag": "button", "cls": ["woo-button-main", "woo-button-primary"], "text": "发送" },
+      { "tag": "div", "cls": ["woo-box-flex"], "hasEditor": true }
+    ]
+  },
+  {
+    "label": "comment-send-enabled",
+    "expect": "post",
+    "chain": [
+      { "tag": "button", "cls": ["woo-button-main", "woo-button-primary"], "text": "评论" },
+      { "tag": "div", "cls": ["woo-box-flex"], "hasEditor": true }
+    ]
+  },
+  {
+    "label": "comment-send",
+    "expect": null,
+    "chain": [
+      { "tag": "button", "cls": ["woo-button-main", "woo-button-primary", "disabled"], "text": "评论" },
+      { "tag": "div", "cls": ["woo-box-flex"], "hasEditor": true }
+    ]
+  },
+  {
+    "label": "comment-reply",
+    "expect": null,
+    "chain": [
+      { "tag": "button", "cls": ["woo-button-main", "woo-button-primary", "disabled"], "text": "评论" },
+      { "tag": "div", "cls": ["woo-box-flex"], "hasEditor": true }
+    ]
+  },
+  {
+    "label": "repost-confirm",
+    "expect": null,
+    "chain": [
+      { "tag": "button", "cls": ["woo-button-main", "woo-button-primary", "disabled"], "text": "转发" },
+      { "tag": "div", "cls": ["woo-box-flex"], "hasEditor": true }
+    ]
+  },
+  {
+    "label": "repost-confirm-enabled",
+    "expect": "repost",
+    "chain": [
+      { "tag": "button", "cls": ["woo-button-main", "woo-button-primary"], "text": "转发" },
+      { "tag": "div", "cls": ["woo-box-flex"], "hasEditor": true }
+    ]
+  },
+  {
+    "label": "comment-open",
+    "expect": null,
+    "chain": [
+      { "tag": "i", "cls": ["woo-font", "woo-font--comment"] },
+      { "tag": "div", "cls": ["woo-box-flex"] }
+    ]
+  },
+  {
+    "label": "repost-open",
+    "expect": null,
+    "chain": [
+      { "tag": "span", "cls": [], "text": "转发" },
+      { "tag": "div", "cls": ["woo-box-flex"] }
+    ]
+  },
+  {
+    "label": "bookmark-1",
+    "expect": "bookmark",
+    "chain": [
+      { "tag": "div", "role": "button", "cls": ["woo-pop-item-main"], "text": "收藏" },
+      { "tag": "div", "cls": ["woo-pop-wrap-main"] }
+    ]
+  },
+  {
+    "label": "bookmark-2",
+    "expect": null,
+    "chain": [
+      { "tag": "div", "role": "button", "cls": ["woo-pop-item-main"], "text": "取消收藏" },
+      { "tag": "div", "cls": ["woo-pop-wrap-main"] }
+    ]
+  },
+  {
+    "label": "follow-1",
+    "expect": "follow",
+    "chain": [
+      { "tag": "button", "cls": ["woo-button-main", "woo-button-primary"], "text": "关注" },
+      { "tag": "header", "cls": ["woo-box-flex"] }
+    ]
+  },
+  {
+    "label": "nav-tab",
+    "expect": null,
+    "chain": [
+      { "tag": "div", "cls": ["woo-tab-item-main"] },
+      { "tag": "a", "cls": [] }
+    ]
+  },
+  {
+    "label": "blank-click",
+    "expect": null,
+    "chain": [
+      { "tag": "div", "cls": [] },
+      { "tag": "body", "cls": [] }
+    ]
+  }
+]
+

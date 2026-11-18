@@ -173,7 +173,12 @@
   const CHABIT_EYE = { x: 380 / 1024, y: 285 / 1024, w: 255 / 1024, h: 100 / 1024 }; // 与 tools/build_pet_assets.py 的 EYE_BBOX 一致
   const CHABIT_SLEEP_AFTER_MS = 5 * 60 * 1000; // 发呆满 5 分钟后趴下睡着
   let chabitEl = null, chabitImg = null, chabitEyeImg = null, chabitState = '', chabitBlinkTimer = null, sleepySince = 0;
-  const chabitUrl = (name) => { try { return chrome.runtime.getURL('sprites/chabit/' + name + '.webp'); } catch (e) { return ''; } };
+  const chabitUrl = (name) => {
+    try {
+      const look = ['chabit', 'deepseek', 'grok'].includes(activeChar()?.look) ? activeChar().look : 'chabit';
+      return chrome.runtime.getURL('sprites/' + look + '/' + name + '.webp');
+    } catch (e) { return ''; }
+  };
   function chabitFatigue() {
     const h = new Date().getHours();
     if (h < 5) return 'tired'; // 深夜
@@ -332,7 +337,7 @@
     body.appendChild(spriteEl);
     spriteState = null;
     stopChabit();
-    if (!c.img && c.look === 'chabit') buildChabit();
+    if (!c.img && ['chabit', 'deepseek', 'grok'].includes(c.look)) buildChabit();
     applySize();
     updatePose(lastPoseActive);
     renderGear();
@@ -450,7 +455,7 @@
   // ---------- 站点检测与单页应用 (SPA) 路由支持 ----------
   // 严格只看网址（hostname + pathname），不读取页面标题或任何内容；金融操作页面与 X 私信/设置页一律不生效
   function checkSiteAllowed(curSettings) {
-    const sites = (curSettings && curSettings.sites) || { x: true, binance: true, okx: true };
+    const sites = (curSettings && curSettings.sites) || XPET.defaultSettings().sites;
     return XPET.siteAllowed(location.hostname, location.pathname, sites);
   }
 
@@ -681,7 +686,8 @@
     const r = settings.reminders;
     if (r.night && XPET.inWindow(new Date().getHours(), r.nightStart, r.nightEnd)) return 'night';
     if (Math.floor(totalSeconds() / 60) < 3) return 'clickEarly';
-    const pool = { x: 'clickX', binance: 'clickBinance', okx: 'clickOkx' }[currentSiteKey()];
+    const siteMeta = XPET.siteByKey(currentSiteKey());
+    const pool = siteMeta && siteMeta.clickPool;
     if (pool && (activeChar().phrases[pool] || []).some((s) => s && s.trim()) && Math.random() < 0.7) return pool;
     return 'click';
   }
@@ -786,6 +792,16 @@
     chars.forEach((c) => {
       addItem(menu, (c.id === activeId ? '✓ ' : '　') + c.name, () => {
         try { chrome.storage.local.set({ [XPET.KEYS.active]: c.id }); } catch (_) {}
+      });
+    });
+    addItem(menu, '切换形象', null, 'xpet-menu-title xpet-menu-sep');
+    const curLook = activeChar()?.look || 'chabit';
+    [['chabit', '🧸 小桌宠'], ['deepseek', '🐋 DeepSeek'], ['grok', '🤖 Grok']].forEach(([lookId, label]) => {
+      addItem(menu, (curLook === lookId ? '✓ ' : '　') + label, () => {
+        const target = activeChar();
+        if (!target) return;
+        target.look = lookId;
+        try { chrome.storage.local.set({ [XPET.KEYS.chars]: chars }); } catch (_) {}
       });
     });
     addItem(menu, '今日小结', openSummary, 'xpet-menu-sep');
@@ -915,20 +931,7 @@
   };
   const OLD_KEY = 'xpetCount'; // 旧版只存"今天"的计数，首次运行时迁移进历史
   const emptySite = () => ({ post: 0, like: 0, bookmark: 0, repost: 0, follow: 0, seconds: 0, scroll: 0 });
-  const emptyDay = () => ({
-    post: 0,
-    like: 0,
-    bookmark: 0,
-    repost: 0,
-    follow: 0,
-    seconds: 0,
-    scroll: 0,
-    bySite: {
-      x: emptySite(),
-      binance: emptySite(),
-      okx: emptySite(),
-    },
-  });
+  const emptyDay = () => XPET.normalizeDay();
 
   const todayStr = () => {
     const d = new Date();
@@ -963,16 +966,7 @@
             delete h[old.date].date;
           }
           const d = todayStr();
-          const cur = h[d] || {};
-          h[d] = {
-            ...emptyDay(),
-            ...cur,
-            bySite: {
-              x: { ...emptySite(), ...(cur.bySite && cur.bySite.x) },
-              binance: { ...emptySite(), ...(cur.bySite && cur.bySite.binance) },
-              okx: { ...emptySite(), ...(cur.bySite && cur.bySite.okx) },
-            },
-          };
+          h[d] = XPET.normalizeDay(h[d]);
           mutator(h[d]);
           const keys = Object.keys(h).sort();
           while (keys.length > XPET.KEEP_DAYS) delete h[keys.shift()];
@@ -991,9 +985,8 @@
   function syncCountsFrom(h) {
     const t = h && h[todayStr()];
     if (!t || typeof t !== 'object') return;
-    const bs = t.bySite || {};
     hist = h;
-    counts = { ...emptyDay(), ...t, bySite: { x: { ...emptySite(), ...bs.x }, binance: { ...emptySite(), ...bs.binance }, okx: { ...emptySite(), ...bs.okx } } };
+    counts = XPET.normalizeDay(t);
     refreshChip();
   }
 
@@ -1103,6 +1096,8 @@
 
   function matchSiteRule(target) {
     const site = currentSiteKey();
+    const siteMeta = XPET.siteByKey(site);
+    if (!siteMeta || siteMeta.level === 'L1') return null;
     if (site !== 'binance' && site !== 'okx') return null;
     for (const r of SITE_RULES[site] || []) {
       const el = target.closest(r.sel);
@@ -1148,9 +1143,113 @@
     }, 600);
   }
 
-  // 智能多平台动作识别（兼容 X / Twitter、币安广场、OK星球）
+  const DOMESTIC_PROBE_WORDS = new Set(['赞', '转发', '评论', '收藏', '关注', '发送', '发布', '发布回答']);
+  let lastDomesticTarget = null;
+  let lastDomesticAt = 0;
+
+  function buildDomesticChain(target, needEditor) {
+    const chain = [];
+    let cur = target;
+    let readBtnText = false;
+    for (let i = 0; i < 12 && cur && cur.nodeType === 1; i++, cur = cur.parentElement) {
+      const tag = cur.tagName.toLowerCase();
+      const role = cur.getAttribute('role') || undefined;
+      const clsStr = typeof cur.className === 'string' ? cur.className.trim() : '';
+      const cls = clsStr ? clsStr.split(/\s+/).filter(Boolean) : [];
+      const node = { tag, role, cls };
+      if (!readBtnText && (tag === 'button' || role === 'button')) {
+        readBtnText = true;
+        const rawAria = (cur.getAttribute('aria-label') || '').trim();
+        if (rawAria && rawAria.length <= 40) node.aria = rawAria;
+        const rawTxt = (cur.textContent || '').trim();
+        if (rawTxt && rawTxt.length <= 40) node.text = rawTxt;
+        node.disabled = !!(cur.disabled || cur.getAttribute('aria-disabled') === 'true');
+      }
+      if (needEditor) {
+        node.hasEditor = !!cur.querySelector('textarea, [contenteditable], [role="textbox"]');
+      }
+      chain.push(node);
+    }
+    return chain;
+  }
+
+  function confirmDomesticRule(rule, el, site) {
+    const post = rule.post;
+    const beforeTxt = (el.textContent || '').trim().slice(0, 40);
+    let beforeNum = parseCount(beforeTxt);
+    if (Number.isNaN(beforeNum) && beforeTxt === '赞') beforeNum = 0;
+
+    const maxMs = Math.min(rule.pollMs || 1500, 2000);
+    const start = Date.now();
+    const timer = setInterval(() => {
+      if (!document.contains(el)) { clearInterval(timer); return; }
+      let confirmed = false;
+      if (post.countIncrease) {
+        const afterTxt = (el.textContent || '').trim().slice(0, 40);
+        const afterNum = parseCount(afterTxt);
+        if (Number.isFinite(beforeNum) && Number.isFinite(afterNum) && afterNum > beforeNum) confirmed = true;
+      } else if (post.textChanged) {
+        const afterTxt = (el.textContent || '').trim().slice(0, 40);
+        if (afterTxt !== beforeTxt) confirmed = true;
+      } else if (post.presentClass && el.classList.contains(post.presentClass)) {
+        confirmed = true;
+      } else if (post.absentClass && !el.classList.contains(post.absentClass)) {
+        confirmed = true;
+      } else if (post.ariaIs && (el.getAttribute('aria-label') || '').trim() === post.ariaIs) {
+        confirmed = true;
+      }
+      if (confirmed) {
+        clearInterval(timer);
+        setStatus({ lastAction: rule.act, lastActionSite: site, lastActionAt: Date.now() });
+        bump(rule.act);
+        return;
+      }
+      if (Date.now() - start >= maxMs) clearInterval(timer);
+    }, 250);
+  }
+
+  // 智能多平台动作识别（兼容 X / Twitter、币安广场、OK星球、国内 L2）
   function matchAction(target) {
     if (!target || !target.closest) return null;
+    const site = currentSiteKey();
+    const policy = XPET.interactionPolicy(site);
+    if (policy.level === 'L1') return null;
+
+    if (XPET.DOMESTIC_RULES && XPET.DOMESTIC_RULES[site] && XPET.DOMESTIC_RULES[site].length) {
+      if (!target.isConnected) return null;
+      const now = Date.now();
+      if (target === lastDomesticTarget && now - lastDomesticAt < 800) return SKIP;
+      lastDomesticTarget = target;
+      lastDomesticAt = now;
+
+      const rules = XPET.DOMESTIC_RULES[site];
+      const needEditor = rules.some((r) => r.ancestorHasEditor);
+      const chain = buildDomesticChain(target, needEditor);
+      const hit = XPET.matchDomesticRule(site, chain);
+      if (hit) {
+        const { rule, matchIndex } = hit;
+        // 找到对应的真实 DOM 元素
+        let el = target;
+        for (let i = 0; i < matchIndex && el; i++) el = el.parentElement;
+        if (!el) return null;
+        if (rule.once && !onceAllowed(rule.act, el)) return SKIP;
+        if (rule.post) {
+          confirmDomesticRule(rule, el, site);
+          return SKIP;
+        }
+        setStatus({ lastAction: rule.act, lastActionSite: site, lastActionAt: Date.now() });
+        return rule.act;
+      }
+      // 失效探测：仅记录白名单词
+      const btn = target.closest('button, [role="button"]');
+      if (btn) {
+        const txt = (btn.textContent || '').trim();
+        if (DOMESTIC_PROBE_WORDS.has(txt)) {
+          setStatus({ unmatchedAction: txt, unmatchedAt: Date.now() });
+        }
+      }
+      return SKIP;
+    }
     lastHit = null;
     const siteAct = matchSiteRule(target);
     if (siteAct === SKIP) return null;
@@ -1169,9 +1268,9 @@
     if (btn.matches(SELECTORS.bookmark)) return 'bookmark';
     if (btn.matches(SELECTORS.repostConfirm)) return 'repost';
     if (btn.matches(SELECTORS.follow)) return 'follow';
-    // X 已有完整的 data-testid 规则；下面的文字/aria 通用规则只给其他站点用，
-    // 否则侧栏 "Post"、"Share post"、个人页 "Likes" 标签都会被误计
-    if (currentSiteKey() === 'x') return null;
+    // X 已有完整的 data-testid 规则；下面的文字/aria 通用规则只给 generic: true 的站点用，
+    // 否则侧栏 "Post"、"Share post"、个人页 "Likes" 标签或非 generic 站点都会被误计
+    if (!policy.generic) return null;
 
     // 2. 币安广场 / OK星球 通用文本与属性特征识别
     const aria = ((btn.getAttribute('aria-label') || '') + ' ' + (btn.getAttribute('title') || '') + ' ' + (btn.getAttribute('data-testid') || '')).toLowerCase();
@@ -1214,6 +1313,7 @@
       if (t.closest('.okui-dialog-mask') || t.closest('.okds-close') || (cb && cb.querySelector('.okds-close'))) quoteArmedAt = 0;
     }
     const act = matchAction(t);
+    if (act === SKIP) return;
     if (act) {
       const hit = lastHit;
       lastHit = null;
@@ -1236,6 +1336,7 @@
   document.addEventListener('keydown', (e) => {
     if (!allowedNow) return;
     if (!(e.ctrlKey || e.metaKey) || e.key !== 'Enter') return;
+    if (!XPET.interactionPolicy(currentSiteKey()).ctrlEnter) return;
     const box = e.target.closest && e.target.closest(SELECTORS.composerBox + ', textarea, [contenteditable="true"]');
     if (!box || !box.textContent.trim()) return;
     bump(quoteContext(e.target) ? 'repost' : 'post');
@@ -1296,6 +1397,26 @@
   let historyLoaded = false;
   let lastNightAt = 0;
   let noticePending = true; // 需要检查有没有新的纪念 / 解锁 / 日记要说；只在宠物看得见时才检查和说
+  let lastVideoCheck = 0;
+  let videoPlaying = false;
+  function isVideoPlaying(now) {
+    const siteMeta = XPET.siteByKey(currentSiteKey());
+    if (!siteMeta || !siteMeta.videoActive || document.visibilityState !== 'visible') {
+      videoPlaying = false;
+      return false;
+    }
+    if (now - lastVideoCheck >= 5000) {
+      lastVideoCheck = now;
+      const list = document.querySelectorAll('video');
+      const states = [];
+      for (let i = 0; i < list.length; i++) {
+        const v = list[i];
+        states.push({ paused: v.paused, ended: v.ended, readyState: v.readyState, currentTime: v.currentTime });
+      }
+      videoPlaying = XPET.hasPlayingVideo(states);
+    }
+    return videoPlaying;
+  }
 
   const tickTimer = setInterval(() => {
     if (!extAlive()) { handleDead(); return; }
@@ -1315,7 +1436,7 @@
     }
 
     // 只有属于生效页面时才计时：币安 / OKX 的交易等页面上脚本虽然加载了，但不会统计任何时长
-    const active = allowedNow && document.visibilityState === 'visible' && document.hasFocus() && now - lastActive < 60000;
+    const active = allowedNow && document.visibilityState === 'visible' && document.hasFocus() && (now - lastActive < 60000 || isVideoPlaying(now));
     if (active) pendingSec += dt;
 
     if (settingsLoaded) trackBack(now, active);
@@ -1618,10 +1739,9 @@
 
     // ④ 分站明细：每站一块，第一行站名 + 时长，第二行互动数（没有就不显示这一行）
     const bs = counts.bySite || {};
-    const SITE_SHORT = { x: '推特', binance: '币安广场', okx: 'OK星球' };
-    const siteIcons = (XPET && XPET.SITE_ICONS) || { x: '𝕏', binance: '🟡', okx: '🔵' };
     const blocks = [];
-    ['x', 'binance', 'okx'].forEach((k) => {
+    XPET.SITES.forEach((siteMeta) => {
+      const k = siteMeta.key;
       const s = bs[k];
       if (!(s && ((s.seconds && s.seconds >= 30) || s.post || s.like || s.bookmark || s.repost || s.follow))) return;
       const smins = Math.floor((s.seconds || 0) / 60);
@@ -1629,10 +1749,14 @@
       [['post', '发文'], ['like', '赞'], ['bookmark', '藏'], ['repost', '转'], ['follow', '关注']].forEach(([f, l]) => { if (s[f]) acts.push(`${l} ${s[f]}`); });
       const block = mk('div', 'xpet-sum-site');
       const top = mk('div', 'xpet-sum-site-top');
-      top.appendChild(mk('span', 'xpet-sum-site-name', `${siteIcons[k]} ${SITE_SHORT[k]}`));
+      top.appendChild(mk('span', 'xpet-sum-site-name', `${siteMeta.icon} ${siteMeta.name}`));
       top.appendChild(mk('span', 'xpet-sum-site-time', smins > 0 ? XPET.fmtDur(smins) : (s.seconds ? '<1分' : '0分')));
       block.appendChild(top);
-      if (acts.length) block.appendChild(mk('div', 'xpet-sum-site-acts', acts.join('　')));
+      if (siteMeta.level === 'L1') {
+        block.appendChild(mk('div', 'xpet-sum-site-acts', '该站暂不统计互动'));
+      } else if (acts.length) {
+        block.appendChild(mk('div', 'xpet-sum-site-acts', acts.join('　')));
+      }
       blocks.push(block);
     });
     if (blocks.length) {

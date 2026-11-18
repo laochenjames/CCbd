@@ -153,7 +153,7 @@
     // 头部：头像、名称、按钮
     const avatar = el('div', { className: 'avatar' });
     if (c.img) avatar.appendChild(el('img', { src: c.img, alt: c.name }));
-    else avatar.textContent = c.look === 'teddy' ? '🐶' : c.look === 'cat' ? '🐱' : c.look === 'doge' ? '🐕' : c.look === 'pepe' ? '🐸' : c.look === 'chabit' ? '🧸' : '🟢';
+    else avatar.textContent = c.look === 'deepseek' ? '🐋' : c.look === 'grok' ? '🤖' : c.look === 'teddy' ? '🐶' : c.look === 'cat' ? '🐱' : c.look === 'doge' ? '🐕' : c.look === 'pepe' ? '🐸' : c.look === 'chabit' ? '🧸' : '🟢';
 
     const nameInput = el('input', { className: 'name', type: 'text', value: c.name, maxLength: 20, placeholder: '角色名称' });
     nameInput.addEventListener('input', () => { c.name = nameInput.value.trim() || '未命名'; saveSoon(); });
@@ -198,7 +198,7 @@
     const lookRow = el('div', { className: 'acc-row' });
     lookRow.appendChild(el('span', { textContent: '内置形象：' }));
     const lookSel = el('select');
-    [['chabit', '🧸 小桌宠']].forEach(([v, t]) => lookSel.appendChild(el('option', { value: v, textContent: t })));
+    [['chabit', '🧸 小桌宠'], ['deepseek', '🐋 DeepSeek'], ['grok', '🤖 Grok']].forEach(([v, t]) => lookSel.appendChild(el('option', { value: v, textContent: t })));
     lookSel.value = c.look || 'chabit';
     lookSel.addEventListener('change', () => { c.look = lookSel.value; render(); saveNow(); });
     lookRow.appendChild(el('span', { className: 'hint', textContent: '　上传了自己的图片后，以图片为准' }));
@@ -500,6 +500,8 @@
     $('site-x').checked = sites.x !== false;
     $('site-binance').checked = sites.binance !== false;
     $('site-okx').checked = sites.okx !== false;
+  if ($('site-weibo')) $('site-weibo').checked = sites.weibo !== false;
+  if ($('site-zhihu')) $('site-zhihu').checked = sites.zhihu !== false;
     // 背景场景 UI 初始化与同步
     const sc = settings.scene || { mode: 'off', id: 'rain' };
     $('s-sceneMode').value = sc.mode || 'off';
@@ -543,6 +545,8 @@
   bindCheck('site-x', (v) => { settings.sites = settings.sites || {}; settings.sites.x = v; });
   bindCheck('site-binance', (v) => { settings.sites = settings.sites || {}; settings.sites.binance = v; });
   bindCheck('site-okx', (v) => { settings.sites = settings.sites || {}; settings.sites.okx = v; });
+  if ($('site-weibo')) bindCheck('site-weibo', (v) => { settings.sites = settings.sites || {}; settings.sites.weibo = v; });
+  if ($('site-zhihu')) bindCheck('site-zhihu', (v) => { settings.sites = settings.sites || {}; settings.sites.zhihu = v; });
 
   // 背景场景事件绑定
   $('s-sceneMode').addEventListener('change', (e) => {
@@ -755,14 +759,15 @@
     if (calSel) showCalDetail(calSel);
     // 本月合计
     const sum = { post: 0, like: 0, bookmark: 0, repost: 0, follow: 0, scroll: 0, mins: 0, days: 0 };
-    const siteMins = { x: 0, binance: 0, okx: 0 };
-    const siteAgg = { x: {}, binance: {}, okx: {} };
+    const siteKeys = XPET.SITES.map((s) => s.key);
+    const siteMins = Object.fromEntries(siteKeys.map((k) => [k, 0]));
+    const siteAgg = Object.fromEntries(siteKeys.map((k) => [k, {}]));
     for (let d = 1; d <= days; d++) {
       const k = dayKey(y, m, d), x = calData.h[k], sx = calData.settled[k], mins = dayMinutes(k);
       if (x) {
         ['post', 'like', 'bookmark', 'repost', 'follow', 'scroll'].forEach((f) => { sum[f] += x[f] || 0; });
         if (x.bySite) {
-          ['x', 'binance', 'okx'].forEach((sk) => {
+          siteKeys.forEach((sk) => {
             const bs = x.bySite[sk];
             if (!bs) return;
             if (bs.seconds) siteMins[sk] += Math.floor(bs.seconds / 60);
@@ -772,7 +777,7 @@
       }
       if (mins > 0) { sum.days++; sum.mins += mins; }
     }
-    const siteLabels = (XPET && XPET.SITE_NAMES) || { x: '𝕏 推特', binance: '🟡 币安广场', okx: '🔵 OK星球' };
+    const siteLabels = XPET.SITE_NAMES;
     const monthBox = document.getElementById('cal-month');
     monthBox.textContent = '';
     if (!sum.days) {
@@ -786,7 +791,7 @@
         cell('发文/回复', sum.post), cell('点赞', sum.like), cell('收藏', sum.bookmark),
         cell('转发/引用', sum.repost), cell('关注', sum.follow),
       ]));
-      ['x', 'binance', 'okx'].forEach((sk) => {
+      siteKeys.forEach((sk) => {
         const a = siteAgg[sk];
         if (!(siteMins[sk] > 0) && !['post', 'like', 'bookmark', 'repost', 'follow'].some((f) => a[f])) return;
         const acts = [['发', 'post'], ['赞', 'like'], ['藏', 'bookmark'], ['转', 'repost'], ['关注', 'follow']]
@@ -817,8 +822,8 @@
     const siteLines = [];
     const bs = d && d.bySite;
     if (bs) {
-      const siteLabels = (XPET && XPET.SITE_NAMES) || { x: '𝕏 推特', binance: '🟡 币安广场', okx: '🔵 OK星球' };
-      ['x', 'binance', 'okx'].forEach((key) => {
+      const siteLabels = XPET.SITE_NAMES;
+      XPET.SITES.forEach(({ key }) => {
         const item = bs[key];
         if (item && ((item.seconds && item.seconds >= 30) || item.post || item.like || item.bookmark || item.repost || item.follow)) {
           const itemMins = Math.floor((item.seconds || 0) / 60);
