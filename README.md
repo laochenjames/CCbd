@@ -1,5 +1,9 @@
 # 🐾 CCbd 伴宠 (CCbd)
 
+<p align="center">
+  <img src="sprites/chabit/working.webp" width="180" alt="CCbd 伴宠 CICI" />
+</p>
+
 > 一只陪你逛推特、币安广场、OK星球、微博、知乎、小红书、B站、抖音的卡通伴宠，是你在屏幕里的「嘴替」：在你发帖、点赞、深夜还没睡的时候，用第一人称说出你可能在想的话。不劝导、不催促、不评判。
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-CCbd%20%E4%BC%B4%E5%AE%A0-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/ccbd-%E4%BC%B4%E5%AE%A0/bogepjknpileffdiipmdkopigfilpafp)
