@@ -16,6 +16,15 @@
 
 ---
 
+## 📸 效果预览
+
+<p align="center">
+  <img src="store_assets/preview_1.png" width="48%" alt="CCbd 效果预览 1" />
+  <img src="store_assets/preview_2.png" width="48%" alt="CCbd 效果预览 2" />
+</p>
+
+---
+
 ## 🌟 核心特色
 
 - **🌐 多平台社交广场支持（推特 · 币安广场 · OK星球 · 微博 · 知乎 · 小红书 · B站 · 抖音）**：
